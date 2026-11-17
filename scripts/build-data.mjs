@@ -74,8 +74,15 @@ function projector(cfg) {
 // doors to the locked-door marks (#f30000) in Labs.svg's Doors groups.
 // The matched doors land within about 5 units of the 720 x 586 viewBox.
 // Refit it if Labs.svg is ever replaced.
+//
+// Customs: with tarkov.dev's 0.16 bounds the pins land about 1.5 units north
+// of where Customs.svg draws the doors. Fitted 2026-11-17 by sliding the 30
+// doors that open a drawn locked room (the *-locked groups, matched per floor)
+// onto those rooms' walls: shift 0.15 units east and 1.5 south (viewBox
+// 1062.48 x 535.17). The mean door-to-wall gap fell from 0.72 to 0.44 units.
 const CALIBRATE = {
   'the-lab': { ax: 1.32524, bx: -0.175573, ay: 1.063164, by: 0.014455 },
+  customs: { ax: 1, bx: 0.15 / 1062.4827, ay: 1, by: 1.5 / 535.17401 },
 };
 
 function floorName(cfg, pos) {
