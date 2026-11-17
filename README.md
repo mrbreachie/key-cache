@@ -6,7 +6,7 @@ A free fan tool for Escape from Tarkov. Tick the keys you own, and the map shows
 
 **Open it:** https://mrbreachie.github.io/key-cache/
 
-![Demo: ticking keys on the map, switching maps from the dropdown, opening a key's details and browsing the key inventory](media/key-ring-demo.gif)
+![Demo: ticking keys on the map, switching maps from the dropdown, opening a key's details and browsing the key inventory](media/key-cache-demo.gif)
 
 ## What it does
 
