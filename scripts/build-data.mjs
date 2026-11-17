@@ -132,6 +132,16 @@ for (const am of apiMaps) {
   }
 }
 
+// Where tarkov.dev places a key outside of locks: as the item an extract asks
+// for (transferItem) or as loose loot. Only used for keys that have no door
+// and no map on the wiki (e.g. The Labyrinth's Ariadne key, gas torch, valve).
+const keyUse = {}, keyLoose = {};
+for (const am of apiMaps) {
+  const mid = mapOf[am.normalizedName] || am.normalizedName;
+  for (const e of am.extracts || []) if (e.transferItem?.item) (keyUse[e.transferItem.item] ||= new Set()).add(mid);
+  for (const l of am.lootLoose || []) for (const id of l.items || []) (keyLoose[id] ||= new Set()).add(mid);
+}
+
 // Keys: every key item, plus keycards that open a door.
 const keys = [];
 for (const it of Object.values(items)) {
@@ -144,6 +154,15 @@ for (const it of Object.values(items)) {
     const m = MAPS.find(m => m.name === w.map);
     if (m) maps = [m.id];
   }
+  let useNote = '', foundNote = '';
+  // Skipped when the wiki already says the key opens nothing ("does not open any lock").
+  if (!maps.length && !w?.usage && !w?.lockLocation) {
+    const nm = id => MAPS.find(m => m.id === id)?.name || NO_SVG[id] || id;
+    const used = [...(keyUse[it.id] || [])], loose = [...(keyLoose[it.id] || [])];
+    maps = [...new Set([...used, ...loose])];
+    if (used.length) useNote = `Needed for an extract on ${used.map(nm).join(', ')} (tarkov.dev).`;
+    if (loose.length) foundNote = `* Loose loot on ${loose.map(nm).join(', ')} (tarkov.dev)`;
+  }
   // Wiki pages saved before fetch-wiki dropped category tags and other-language
   // links still contain lines like "Category:Keys" or "fr:Clé ...": drop them here too.
   const tidy = t => (t || '').split('\n').filter(l => !/^(Category|[a-z]{2,3}(-[a-z]+)?):\S/.test(l.trim())).join('\n').trim();
@@ -155,8 +174,8 @@ for (const it of Object.values(items)) {
     price: it.avg24hPrice || it.lastLowPrice || 0,
     trader: Math.max(0, ...(it.sellFor || []).map(s => s.price || 0)),
     maps,
-    usage: tidy(w?.usage),
-    keyLocation: tidy(w?.keyLocation),
+    usage: tidy(w?.usage) || useNote,
+    keyLocation: tidy(w?.keyLocation) || foundNote,
     lockLocation: tidy(w?.lockLocation),
     behindLock: tidy(w?.behindLock),
     quests: tidy(w?.quests),

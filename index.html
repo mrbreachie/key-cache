@@ -746,6 +746,8 @@ select.sort { margin-left: auto; }
     mapIds.map(id => `<option value="${id}">${esc(mapName(id))}</option>`).join('') +
     '<option value="-">No map listed</option>';
   $('isort').value = st.isort;
+  // The wiki says some keys open nothing at all ("does not open any lock").
+  const opensNothing = k => /does (currently )?not (currently )?open any/i.test(k.usage);
   function snippet(t) {
     if (!t) return '';
     const s = t.split('\n').map(l => l.trim()).filter(l => l && !/^=+.*=+$/.test(l)).map(l => l.replace(/^\*+\s*/, '')).join(' · ');
@@ -779,7 +781,7 @@ select.sort { margin-left: auto; }
           <div><h2><button data-open>${esc(k.name)}</button></h2><span class="price">${k.price ? rub(k.price) + ' flea avg' : 'No flea price'}</span></div>
           <input class="tick" type="checkbox" aria-label="I have ${esc(k.name)}" ${has ? 'checked' : ''}>
         </div>
-        <div class="kc-tags">${(k.maps.length ? k.maps.map(mapName) : ['No map listed']).map(m => `<span class="tag">${esc(m)}</span>`).join('')}${k.quests ? '<span class="tag">Quest</span>' : ''}</div>
+        <div class="kc-tags">${(k.maps.length ? k.maps.map(mapName) : [opensNothing(k) ? 'Opens no lock' : 'No map listed']).map(m => `<span class="tag">${esc(m)}</span>`).join('')}${k.quests ? '<span class="tag">Quest</span>' : ''}</div>
         <p class="kc-loot">${loot ? '<b>Behind the door:</b> ' + esc(loot) : 'No loot listed on the wiki yet.'}</p>
         <div class="kc-foot"><span>${n ? plural(n, 'door') + ' on the map' : 'No door pinned'}</span><span class="more">Details →</span></div>
       </article>`;
