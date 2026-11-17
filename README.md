@@ -27,7 +27,7 @@ node scripts/fetch-wiki.mjs           # key text from the wiki
 node scripts/build-data.mjs --refresh # door positions, items and prices from tarkov.dev
 ```
 
-Then commit `docs/` and push. GitHub Pages serves the `docs/` folder as it is: nothing is built or downloaded on GitHub.
+Then commit `assets/` and push. GitHub Pages serves the repository as it is (from `main`, root): nothing is built or downloaded on GitHub.
 
 The scripts are polite to the services they use:
 
@@ -38,23 +38,24 @@ The scripts are polite to the services they use:
 ## How it's built
 
 ```
-docs/      the website, served by GitHub Pages (index.html, data.js, icons.js, maps/)
-scripts/   build scripts (Node 18+)
-data/      build inputs: wiki text, map config, source map SVGs, key icons
-media/     images for this README and the brand
-archive/   earlier versions of the page
+index.html  the whole app (one file of HTML, CSS and JavaScript)
+assets/     data the page loads: data.js, icons.js and maps/*.js
+scripts/    build scripts (Node 18+)
+data/       build inputs: wiki text, map config, source map SVGs, key icons
+media/      images for this README and the brand
+archive/    earlier versions of the page
 ```
 
 
 - `scripts/fetch-wiki.mjs` reads the wiki's Keys and Keycards categories.
-- `scripts/build-data.mjs` joins the wiki text with the tarkov.dev data and writes `docs/data.js`, `docs/icons.js` and `docs/maps/*.js`.
-- `docs/index.html` is the whole app: one file of HTML, CSS and JavaScript, with no framework and no build step.
+- `scripts/build-data.mjs` joins the wiki text with the tarkov.dev data and writes `assets/data.js`, `assets/icons.js` and `assets/maps/*.js`.
+- `index.html` is the whole app: one file of HTML, CSS and JavaScript, with no framework and no build step.
 
 Door positions use the same projection as tarkov.dev. The Lab's map image has no published bounds, so its pins use a correction fitted to the locked-door marks in the image.
 
 ## Credits and licences
 
-- **Code** (`docs/index.html`, `scripts/`): MIT, see [LICENSE](LICENSE).
+- **Code** (`index.html`, `scripts/`): MIT, see [LICENSE](LICENSE).
 - **Map images:** by Shebuka for [tarkov.dev](https://github.com/the-hideout/tarkov-dev-svg-maps), CC BY-NC-SA 4.0. They're recoloured here, and the recoloured versions use the same licence.
 - **Key text:** [Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com), CC BY-NC-SA.
 - **Door positions, items, prices and icons:** [tarkov.dev](https://tarkov.dev).

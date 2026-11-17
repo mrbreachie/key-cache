@@ -1,5 +1,5 @@
-// Joins tarkov.dev map/item data with the wiki key pages into docs/data.js,
-// and downloads key icons and map SVGs into docs/.
+// Joins tarkov.dev map/item data with the wiki key pages into assets/data.js,
+// downloads key icons into data/icons/ and writes the map scripts into assets/maps/.
 // Usage: node scripts/build-data.mjs [--refresh] [--force]
 //   --refresh  re-download maps and items from json.tarkov.dev, but only if
 //              the cached copies are more than 24 hours old
@@ -195,7 +195,7 @@ function scopeSvg(svg) {
 }
 
 // Assets
-await mkdir(p('docs/maps/'), { recursive: true });
+await mkdir(p('assets/maps/'), { recursive: true });
 await mkdir(p('data/icons/'), { recursive: true });
 await mkdir(p('data/preview/'), { recursive: true });
 for (const m of MAPS) {
@@ -209,7 +209,7 @@ for (const m of MAPS) {
   await writeFile(p(`data/preview/${m.svg}`), scoped);
   // The page loads maps as <script> files (maps/Name.js), the same way it loads
   // data.js: fetch() of the .svg didn't work on the hosted page.
-  await writeFile(p(`docs/maps/${m.svg.replace(/\.svg$/, '.js')}`),
+  await writeFile(p(`assets/maps/${m.svg.replace(/\.svg$/, '.js')}`),
     `window.TK_MAP && window.TK_MAP(${JSON.stringify(m.svg)}, ${JSON.stringify(scoped)});\n`);
   delete m.also;
 }
@@ -242,7 +242,7 @@ const out = {
   keys,
   doors: doors.filter(d => !d.nopin),
 };
-await writeFile(p('docs/data.js'), 'window.TK_DATA = ' + JSON.stringify(out) + ';\n');
+await writeFile(p('assets/data.js'), 'window.TK_DATA = ' + JSON.stringify(out) + ';\n');
 const pinned = out.doors.length;
 const noWiki = keys.filter(k => !k.behindLock && k.maps.length).map(k => k.name);
 console.log(`${keys.length} keys, ${pinned} doors pinned, ${got} icons`);
@@ -255,5 +255,5 @@ for (const k of keys) {
   if (!k.icon) continue;
   icons[k.id] = 'data:image/webp;base64,' + (await readFile(p(`data/icons/${k.id}.webp`))).toString('base64');
 }
-await writeFile(p('docs/icons.js'), 'window.TK_ICONS = ' + JSON.stringify(icons) + ';\n');
+await writeFile(p('assets/icons.js'), 'window.TK_ICONS = ' + JSON.stringify(icons) + ';\n');
 console.log(`icons.js: ${Object.keys(icons).length} icons`);

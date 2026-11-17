@@ -369,8 +369,8 @@ select.sort { margin-left: auto; background: var(--panel-2); border: 1px solid v
   </aside>
 </div>
 
-<script src="data.js"></script>
-<script src="icons.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/icons.js"></script>
 <script>
 (() => {
   const D = window.TK_DATA, ICONS = {};
@@ -515,14 +515,14 @@ select.sort { margin-left: auto; background: var(--panel-2); border: 1px solid v
   const stage = $('stage'), wrap = $('mapWrap'), img = $('mapImg'), pinsEl = $('pins');
   const view = { k: 1, tx: 0, ty: 0, k0: 1 };
   let cur = null, loadSeq = 0, grid = { cell: 1, cols: 0, rows: 0 }, rxEls = [], ryEls = [];
-  // Maps arrive as scripts (maps/Name.js call TK_MAP), loaded the first time
+  // Maps arrive as scripts (assets/maps/Name.js call TK_MAP), loaded the first time
   // each map is opened and then kept in memory for the rest of the visit.
   const svgCache = {}, mapWaiters = {};
   window.TK_MAP = (name, txt) => { const w = mapWaiters[name]; delete mapWaiters[name]; if (w) w(txt); };
   const loadSvg = name => svgCache[name] ||= new Promise((resolve, reject) => {
     mapWaiters[name] = resolve;
     const s = document.createElement('script');
-    s.src = 'maps/' + name.replace(/\.svg$/, '.js');
+    s.src = 'assets/maps/' + name.replace(/\.svg$/, '.js');
     s.onerror = () => { delete svgCache[name]; delete mapWaiters[name]; s.remove(); reject(new Error('load failed')); };
     document.body.appendChild(s);
   });
