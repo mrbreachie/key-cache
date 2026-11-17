@@ -122,22 +122,32 @@ body[data-view="inv"] .mappick, body[data-view="inv"] .keysbtn { display: none; 
 .ruler-corner { position: absolute; left: 0; top: 0; width: 24px; height: 24px; z-index: 5; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 
 .pins { position: absolute; inset: 0; pointer-events: none; }
-.pin {
-  position: absolute; left: 0; top: 0; width: 14px; height: 14px; margin: -7px 0 0 -7px; padding: 0;
-  border-radius: 50%; border: 2.5px solid #f2f2f2; background: rgba(8,8,10,.9); pointer-events: auto;
-  box-shadow: 0 0 0 1.5px #000, 0 1px 5px rgba(0,0,0,.7); transition: width .15s var(--ease), height .15s var(--ease), margin .15s var(--ease), opacity .15s;
+/* Map markers. Locks: a solid white unlocked padlock = you have the key, a dark closed padlock = key missing.
+   Keys: a key icon marks a fixed key spawn. Colours come from --f (fill), --s (outline) and --sh (shackle). */
+.pin, .spawn {
+  position: absolute; left: 0; top: 0; padding: 0; border: 0; background: none; pointer-events: auto; cursor: pointer;
+  filter: drop-shadow(0 0 1px #000) drop-shadow(0 1px 2px rgba(0,0,0,.75));
+  transition: width .15s var(--ease), height .15s var(--ease), margin .15s var(--ease), opacity .15s;
 }
-.pin:hover { border-color: var(--hi); }
-.pin.open { width: 18px; height: 18px; margin: -9px 0 0 -9px; background: var(--hi); border: 3px solid var(--hi-ink); box-shadow: 0 0 0 1.5px var(--hi), 0 0 0 3px #000, 0 0 14px rgba(255,255,255,.45); }
-.pin.hl { width: 24px; height: 24px; margin: -12px 0 0 -12px; box-shadow: 0 0 0 3px var(--hi-ink), 0 0 0 5px var(--hi), 0 0 22px rgba(255,255,255,.5); z-index: 3 !important; }
-.pin.hl::before { content: ""; position: absolute; inset: -14px; border-radius: 50%; border: 1.5px solid var(--hi); pointer-events: none; opacity: .8; }
+.pin svg, .spawn svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pin { width: 18px; height: 20px; margin: -10px 0 0 -9px; --f: #15171a; --s: #f2f2f2; --sh: #f2f2f2; }
+.pin.open { width: 20px; height: 22px; margin: -11px 0 0 -10px; --f: #fff; --s: #000; --sh: #fff; }
+.pin:hover { --s: #fff; }
+.pin.hl, .spawn.hl, .spawn.hunt { z-index: 3 !important; }
+.pin.hl { width: 28px; height: 31px; margin: -15.5px 0 0 -14px; }
+.spawn { width: 18px; height: 18px; margin: -9px 0 0 -9px; --f: #15171a; --s: #e8e8e8; }
+.spawn:hover { --s: #fff; }
+.spawn.hunt { width: 26px; height: 26px; margin: -13px 0 0 -13px; --f: #fff; --s: #000; }
+.spawn.hl { width: 30px; height: 30px; margin: -15px 0 0 -15px; --f: #fff; --s: #000; }
+.pin.hl::before, .spawn.hl::before, .spawn.hunt::before { content: ""; position: absolute; inset: -12px; border-radius: 50%; border: 1.5px solid var(--hi); pointer-events: none; opacity: .8; }
+.spawn.hunt::before { border-style: dashed; }
 @media (prefers-reduced-motion: no-preference) {
-  .pin.hl::before { animation: halo 1.6s var(--ease) infinite; }
+  .pin.hl::before, .spawn.hl::before { animation: halo 1.6s var(--ease) infinite; }
   @keyframes halo { from { transform: scale(.55); opacity: .95; } to { transform: scale(1.25); opacity: 0; } }
 }
-.pin.dim { opacity: .4; }
-.pin.off { width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; opacity: .55; border-width: 1.5px; box-shadow: 0 0 0 1px #000; }
-.pin.off::before { display: none; }
+.pin.dim, .spawn.dim { opacity: .4; }
+.pin.off, .spawn.off { width: 11px; height: 12px; margin: -6px 0 0 -5.5px; opacity: .5; }
+.pin.off::before, .spawn.off::before { display: none; }
 .tip {
   position: absolute; pointer-events: none; background: rgba(250,250,250,.97); color: #0b0b0c; padding: 6px 10px; border-radius: 8px;
   font: 500 13px/1.3 var(--f-body); white-space: nowrap; transform: translate(-50%, calc(-100% - 16px)); z-index: 6; box-shadow: var(--shadow);
@@ -166,17 +176,17 @@ body[data-view="inv"] .mappick, body[data-view="inv"] .keysbtn { display: none; 
 .zoom button { width: 36px; height: 36px; border: 0; border-radius: 8px; background: transparent; display: grid; place-items: center; color: var(--fg); transition: background .15s; }
 .zoom button:hover { background: rgba(255,255,255,.08); }
 .zoom svg { width: 16px; height: 16px; }
-.legend { position: absolute; left: 38px; bottom: 14px; z-index: 4; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding: 9px 14px; font-size: 13px; color: var(--muted); }
+.legend { position: absolute; left: 38px; bottom: 58px; z-index: 4; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding: 9px 14px; font-size: 13px; color: var(--muted); }
 .legend .s { display: flex; gap: 8px; align-items: center; }
-.legend .d { width: 14px; height: 14px; border-radius: 50%; flex: none; }
-.legend .d.o { background: var(--hi); border: 3px solid var(--hi-ink); box-shadow: 0 0 0 1.5px var(--hi); width: 16px; height: 16px; }
-.legend .d.l { border: 2.5px solid #f2f2f2; box-shadow: 0 0 0 1.5px #000; }
+.legend svg.lg { width: 15px; height: 17px; flex: none; overflow: visible; filter: drop-shadow(0 0 1px #000); --f: #15171a; --s: #f2f2f2; --sh: #f2f2f2; }
+.legend svg.lg.o { --f: #fff; --s: #000; --sh: #fff; }
+.legend svg.lg.k { width: 16px; height: 16px; }
 .legend label { display: flex; gap: 8px; align-items: center; cursor: pointer; padding-left: 14px; border-left: 1px solid var(--line-2); }
 .sw { appearance: none; -webkit-appearance: none; margin: 0; width: 30px; height: 18px; border-radius: 99px; background: #3a3a3e; position: relative; cursor: pointer; transition: background .15s; flex: none; }
 .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #a0a0a5; transition: transform .18s var(--ease), background .15s; }
 .sw:checked { background: var(--hi); }
 .sw:checked::after { transform: translateX(12px); background: var(--hi-ink); }
-footer.credit { position: absolute; right: calc(14px + var(--pr)); bottom: 14px; z-index: 4; max-width: max(200px, min(36%, calc(100% - 480px - var(--pr)))); text-align: right; font-size: 11.5px; line-height: 1.45; color: var(--muted); padding: 7px 10px; border-radius: 10px; background: rgba(29,32,36,.88); transition: right .25s var(--ease); }
+footer.credit { position: absolute; left: 24px; right: var(--pr); bottom: 0; z-index: 4; padding: 6px 16px; font-size: 11.5px; line-height: 1.45; color: var(--muted); background: rgba(29,32,36,.9); border-top: 1px solid var(--line); transition: right .25s var(--ease); }
 footer.credit a { color: var(--muted); }
 .nomap { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); padding: 24px; text-align: center; }
 
@@ -249,6 +259,10 @@ select.sort { margin-left: auto; }
 .sec p, .sec li { color: #dcdcdf; line-height: 1.6; }
 .sec .none { color: var(--muted); font-style: italic; }
 .doors { display: grid; gap: 6px; margin-top: 12px; }
+.huntsw { display: flex; gap: 12px; align-items: center; padding: 11px 13px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--panel-2); cursor: pointer; }
+.huntsw span { display: grid; gap: 1px; }
+.huntsw b { font-weight: 600; }
+.huntsw small { color: var(--muted); font-size: 12.5px; }
 .doors button { display: grid; grid-template-columns: 46px 1fr auto; gap: 10px; align-items: center; text-align: left; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--panel-2); padding: 10px 12px; transition: background .15s, border-color .15s; }
 .doors button:hover { background: var(--panel-3); border-color: var(--line-2); }
 .doors .ref { font: 600 13px var(--f-mono); background: var(--bg); border-radius: 6px; padding: 3px 0; text-align: center; }
@@ -291,6 +305,25 @@ select.sort { margin-left: auto; }
 .kc-loot b { color: var(--fg); font-weight: 600; }
 .kc-foot { margin-top: auto; display: flex; justify-content: space-between; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--faint); }
 .kc-foot .more { color: var(--muted); }
+.tag.hunting { background: var(--fg); color: var(--hi-ink); font-weight: 600; }
+.invlist { margin-top: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); overflow: hidden; }
+.lhead, .lrow { display: grid; grid-template-columns: 40px minmax(220px, 2fr) minmax(140px, 1.3fr) minmax(140px, 1.3fr) 96px; gap: 12px; align-items: center; padding: 9px 16px; }
+.lhead { font: 600 12px/1.2 var(--f-body); letter-spacing: .03em; color: var(--muted); background: var(--panel-2); border-bottom: 1px solid var(--line); position: sticky; top: 0; }
+.lrow { border-bottom: 1px solid var(--line); cursor: pointer; transition: background .12s; }
+.lrow:last-child { border-bottom: 0; }
+.lrow:hover { background: var(--panel-2); }
+.lrow.sel { background: var(--panel-3); box-shadow: inset 3px 0 0 var(--hi); }
+.lname { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.lname .slot { width: 36px; height: 36px; border-radius: 9px; }
+.lname button { all: unset; cursor: pointer; font-weight: 500; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lname button:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; border-radius: 4px; }
+.lrow.owned .lname button { color: var(--hi); font-weight: 650; }
+.lcell { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; font-size: 13.5px; color: var(--muted); }
+.lcell .none, .lhunt .none { color: var(--faint); font-size: 13px; }
+.mlink { border: 1px solid var(--line-2); background: var(--panel-2); color: var(--fg); border-radius: 99px; padding: 3px 10px; font-size: 13px; transition: background .12s, border-color .12s; }
+.mlink:hover { background: var(--panel-3); border-color: rgba(255,255,255,.35); }
+.mlink::after { content: " →"; color: var(--muted); }
+.lhunt { display: flex; justify-content: center; }
 .kc:hover .kc-foot .more { color: var(--fg); }
 
 /* ---------- menu pop-out (left) ---------- */
@@ -345,15 +378,21 @@ select.sort { margin-left: auto; }
   .legend { left: 32px; right: 8px; bottom: 74px; gap: 6px 12px; font-size: 12.5px; padding: 8px 10px; }
   .legend .s { gap: 6px; }
   .legend label { padding-left: 0; border-left: 0; gap: 6px; }
-  footer.credit { left: 24px; right: 0; bottom: 0; max-width: none; text-align: left; padding: 7px 12px; font-size: 10.5px; line-height: 1.35; border-radius: 0; background: rgba(29,32,36,.92); border-top: 1px solid var(--line); }
+  footer.credit { right: 0; padding: 7px 12px; font-size: 10.5px; line-height: 1.35; }
   .inv-wrap { padding-top: 20px; }
   .toolbar { position: static; }
   .inv-head h1 { font-size: 24px; }
   .inv-stat { min-width: 0; width: 100%; }
   .toolbar .selbox { flex: 1; }
   .seg { width: 100%; }
+  #iview { width: auto; flex: 1; }
+  .seg button { padding: 0 8px; white-space: nowrap; font-size: 13px; }
   .seg button { flex: 1; }
   .invgrid { grid-template-columns: minmax(0, 1fr); }
+  .lhead { display: none; }
+  .lrow { grid-template-columns: 30px minmax(0, 1fr); gap: 8px 10px; padding: 12px; }
+  .lrow .lcell, .lrow .lhunt { grid-column: 2; justify-content: flex-start; }
+  .lrow [data-label]::before { content: attr(data-label) ": "; color: var(--faint); font-size: 12.5px; margin-right: 2px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .panel, .nav, .scrim, .zoom, footer.credit { transition: none !important; }
@@ -365,6 +404,11 @@ select.sort { margin-left: auto; }
 </style>
 </head>
 <body data-view="map">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-lock" viewBox="0 0 18 20"><path d="M5 9V6.2a4 4 0 0 1 8 0V9" fill="none" stroke="var(--sh)" stroke-width="2.4"/><rect x="2" y="8.5" width="14" height="10.5" rx="2.4" fill="var(--f)" stroke="var(--s)" stroke-width="1.7"/></symbol>
+  <symbol id="i-unlock" viewBox="0 0 18 20"><path d="M5 9V6.2a4 4 0 0 1 7.6-1.8" fill="none" stroke="var(--sh)" stroke-width="2.4" stroke-linecap="round"/><rect x="2" y="8.5" width="14" height="10.5" rx="2.4" fill="var(--f)" stroke="var(--s)" stroke-width="1.7"/></symbol>
+  <symbol id="i-key" viewBox="0 0 20 20"><path d="M9.5 10H18.5M15.5 10v3.2M18 10v2.6" fill="none" stroke="var(--s)" stroke-width="4.6" stroke-linecap="round"/><path d="M9.5 10H18.5M15.5 10v3.2M18 10v2.6" fill="none" stroke="var(--f)" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="10" r="4.2" fill="var(--f)" stroke="var(--s)" stroke-width="1.8"/><circle cx="6" cy="10" r="1.4" fill="var(--s)"/></symbol>
+</svg>
 
 <header class="top">
   <button class="iconbtn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="nav">
@@ -406,9 +450,11 @@ select.sort { margin-left: auto; }
       <button id="zFit" aria-label="Fit map" title="Fit map"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg></button>
     </div>
     <div class="legend">
-      <span class="s"><i class="d o"></i>You can open</span>
-      <span class="s"><i class="d l"></i>Key missing</span>
+      <span class="s"><svg class="lg o" aria-hidden="true"><use href="#i-unlock"/></svg>You can open</span>
+      <span class="s"><svg class="lg" aria-hidden="true"><use href="#i-lock"/></svg>Key missing</span>
+      <span class="s"><svg class="lg k" aria-hidden="true"><use href="#i-key"/></svg>Key spawn</span>
       <label><input class="sw" type="checkbox" id="showLocked" checked> Show missing</label>
+      <label><input class="sw" type="checkbox" id="showSpawns" checked> Key spawns</label>
     </div>
     <footer class="credit">
       <span id="mapCredit"></span> Door positions and prices from <a href="https://tarkov.dev" target="_blank" rel="noopener">tarkov.dev</a>. Key text from the <a href="https://escapefromtarkov.fandom.com" target="_blank" rel="noopener">Escape from Tarkov Wiki</a> (CC BY-NC-SA). Fan-made, not affiliated with Battlestate Games.
@@ -431,6 +477,11 @@ select.sort { margin-left: auto; }
           <button data-own="all" aria-pressed="true">All</button>
           <button data-own="owned" aria-pressed="false">Owned</button>
           <button data-own="missing" aria-pressed="false">Missing</button>
+          <button data-own="hunt" aria-pressed="false">Looking for</button>
+        </div>
+        <div class="seg" id="iview" role="group" aria-label="View">
+          <button data-v="info" aria-pressed="true">Info</button>
+          <button data-v="list" aria-pressed="false">List</button>
         </div>
         <select class="selbox" id="isort" aria-label="Sort keys">
           <option value="name">Name A–Z</option>
@@ -440,6 +491,7 @@ select.sort { margin-left: auto; }
       </div>
       <p class="inv-count" id="invCount"></p>
       <div class="invgrid" id="invGrid"></div>
+      <div class="invlist" id="invList" hidden></div>
     </div>
   </main>
 
@@ -528,6 +580,8 @@ select.sort { margin-left: auto; }
   const mapName = id => mapById[id]?.name || D.extraMaps[id] || id;
   const doorsByKey = {};
   D.doors.forEach(d => (doorsByKey[d.key] ||= []).push(d));
+  const spawnsByKey = {};
+  (D.spawns || []).forEach(s => s.keys.forEach(id => (spawnsByKey[id] ||= []).push(s)));
   const rub = n => n ? '₽' + Math.round(n).toLocaleString('en-US') : '';
   const ticks = (on, total) => '<i class="on"></i>'.repeat(on) + '<i></i>'.repeat(Math.max(0, total - on));
   const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
@@ -552,12 +606,17 @@ select.sort { margin-left: auto; }
   try { owned = new Set(JSON.parse(localStorage.getItem(STORE) || '[]')); } catch {}
   const save = () => { try { localStorage.setItem(STORE, JSON.stringify([...owned])); } catch {} };
   const st = { view: null, map: 'customs', sel: null, q: '', fMap: true, fOwned: false, fMissing: false, sort: 'name', showLocked: true, hover: null,
-    panel: false, panelPref: true, iq: '', imap: '', iown: 'all', isort: 'name' };
+    panel: false, panelPref: true, iq: '', imap: '', iown: 'all', isort: 'name', iview: 'info', showSpawns: true };
   try {
     const v = JSON.parse(localStorage.getItem('tk-ui-v1') || '{}');
-    Object.assign(st, { fMap: v.fMap ?? true, sort: v.sort || 'name', showLocked: v.showLocked ?? true, panelPref: v.panel ?? true, isort: v.isort || 'name' });
+    Object.assign(st, { fMap: v.fMap ?? true, sort: v.sort || 'name', showLocked: v.showLocked ?? true, panelPref: v.panel ?? true, isort: v.isort || 'name', iview: v.iview === 'list' ? 'list' : 'info', showSpawns: v.showSpawns ?? true });
   } catch {}
-  const saveUi = () => { try { localStorage.setItem('tk-ui-v1', JSON.stringify({ fMap: st.fMap, sort: st.sort, showLocked: st.showLocked, panel: st.panelPref, isort: st.isort })); } catch {} };
+  const saveUi = () => { try { localStorage.setItem('tk-ui-v1', JSON.stringify({ fMap: st.fMap, sort: st.sort, showLocked: st.showLocked, panel: st.panelPref, isort: st.isort, iview: st.iview, showSpawns: st.showSpawns })); } catch {} };
+  // Keys you're looking for: their fixed spawns are highlighted on the map. Kept per browser.
+  const HUNT = 'tk-hunt-v1';
+  let hunt = new Set();
+  try { hunt = new Set(JSON.parse(localStorage.getItem(HUNT) || '[]')); } catch {}
+  const saveHunt = () => { try { localStorage.setItem(HUNT, JSON.stringify([...hunt])); } catch {} };
   const fromHash = decodeURIComponent(location.hash.slice(1));
   if (mapById[fromHash]) st.map = fromHash;
 
@@ -740,7 +799,7 @@ select.sort { margin-left: auto; }
       if (row) { row.classList.toggle('owned', on); row.querySelector('input').checked = on; }
     }
     if (st.view === 'inv') {
-      if (st.iown !== 'all') renderInv();
+      if (st.iown !== 'all' || st.iview === 'list') renderInv();
       else {
         const c = $('invGrid').querySelector(`.kc[data-id="${id}"]`);
         if (c) { c.classList.toggle('owned', on); c.querySelector('input').checked = on; }
@@ -770,6 +829,7 @@ select.sort { margin-left: auto; }
     else if (st.imap) ks = ks.filter(k => k.maps.includes(st.imap));
     if (st.iown === 'owned') ks = ks.filter(k => owned.has(k.id));
     if (st.iown === 'missing') ks = ks.filter(k => !owned.has(k.id));
+    if (st.iown === 'hunt') ks = ks.filter(k => hunt.has(k.id));
     if (st.isort === 'price') ks = ks.slice().sort((a, b) => b.price - a.price);
     if (st.isort === 'doors') ks = ks.slice().sort((a, b) => (doorsByKey[b.id]?.length || 0) - (doorsByKey[a.id]?.length || 0));
     return ks;
@@ -781,26 +841,69 @@ select.sort { margin-left: auto; }
   }
   function renderInv() {
     renderInvStat();
-    const ks = invKeys();
+    const ks = invKeys(), list = st.iview === 'list';
     $('invCount').textContent = `Showing ${plural(ks.length, 'key')}`;
+    $('invGrid').hidden = list; $('invList').hidden = !list;
+    $('iview').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === st.iview));
+    if (list) return renderInvList(ks);
     $('invGrid').innerHTML = ks.length ? ks.map(k => {
-      const n = doorsByKey[k.id]?.length || 0, has = owned.has(k.id);
+      const n = doorsByKey[k.id]?.length || 0, sp = spawnsByKey[k.id]?.length || 0, has = owned.has(k.id);
       const loot = snippet(k.behindLock);
       return `<article class="kc${has ? ' owned' : ''}${st.sel === k.id ? ' sel' : ''}" data-id="${k.id}">
         <div class="kc-top">${slot(k, true)}
           <div><h2><button data-open>${esc(k.name)}</button></h2><span class="price">${k.price ? rub(k.price) + ' flea avg' : 'No flea price'}</span></div>
           <input class="tick" type="checkbox" aria-label="I have ${esc(k.name)}" ${has ? 'checked' : ''}>
         </div>
-        <div class="kc-tags">${(k.maps.length ? k.maps.map(mapName) : [opensNothing(k) ? 'Opens no lock' : 'No map listed']).map(m => `<span class="tag">${esc(m)}</span>`).join('')}${k.quests ? '<span class="tag">Quest</span>' : ''}</div>
+        <div class="kc-tags">${(k.maps.length ? k.maps.map(mapName) : [opensNothing(k) ? 'Opens no lock' : 'No map listed']).map(m => `<span class="tag">${esc(m)}</span>`).join('')}${k.quests ? '<span class="tag">Quest</span>' : ''}${hunt.has(k.id) ? '<span class="tag hunting">Looking for</span>' : ''}</div>
         <p class="kc-loot">${loot ? '<b>Behind the door:</b> ' + esc(loot) : 'No loot listed on the wiki yet.'}</p>
-        <div class="kc-foot"><span>${n ? plural(n, 'door') + ' on the map' : 'No door pinned'}</span><span class="more">Details →</span></div>
+        <div class="kc-foot"><span>${n ? plural(n, 'door') : 'No door pinned'}${sp ? ' · ' + plural(sp, 'fixed spawn') : ''}</span><span class="more">Details →</span></div>
       </article>`;
     }).join('') : '<div class="empty">No keys match.</div>';
+  }
+  // List view: one row per key with the map(s) its lock is on and the map(s) it spawns on.
+  // Map names with a pinned door or fixed spawn open the map there.
+  function renderInvList(ks) {
+    const lockCell = k => {
+      const withDoor = [...new Set((doorsByKey[k.id] || []).map(d => d.map))];
+      const rest = k.maps.filter(m => !withDoor.includes(m));
+      const parts = [...withDoor.map(m => `<button class="mlink" data-door-map="${m}" title="Show the lock on the map">${esc(mapName(m))}</button>`), ...rest.map(m => `<span>${esc(mapName(m))}</span>`)];
+      return parts.length ? parts.join('') : `<span class="none">${opensNothing(k) ? 'Opens no lock' : 'No map listed'}</span>`;
+    };
+    const spawnCell = k => {
+      const ms = [...new Set((spawnsByKey[k.id] || []).map(s => s.map))];
+      return ms.length ? ms.map(m => `<button class="mlink" data-spawn-map="${m}" title="Show where it spawns">${esc(mapName(m))}</button>`).join('') : '<span class="none">No fixed spawn</span>';
+    };
+    $('invList').innerHTML = ks.length ? `<div class="lhead" aria-hidden="true"><span></span><span>Key</span><span>Lock is on</span><span>Spawns on</span><span>Looking for</span></div>` +
+      ks.map(k => {
+        const has = owned.has(k.id), sp = spawnsByKey[k.id]?.length;
+        return `<div class="lrow${has ? ' owned' : ''}${st.sel === k.id ? ' sel' : ''}" data-id="${k.id}">
+          <input class="tick" type="checkbox" aria-label="I have ${esc(k.name)}" ${has ? 'checked' : ''}>
+          <div class="lname">${slot(k, true)}<button data-open>${esc(k.name)}</button></div>
+          <div class="lcell" data-label="Lock is on">${lockCell(k)}</div>
+          <div class="lcell" data-label="Spawns on">${spawnCell(k)}</div>
+          <div class="lhunt" data-label="Looking for">${sp ? `<input class="sw" type="checkbox" data-hunt aria-label="Looking for ${esc(k.name)}" ${hunt.has(k.id) ? 'checked' : ''}>` : '<span class="none">–</span>'}</div>
+        </div>`;
+      }).join('') : '<div class="empty">No keys match.</div>';
   }
   $('invGrid').addEventListener('click', e => {
     const c = e.target.closest('.kc'); if (!c) return;
     if (e.target.matches('input[type=checkbox]')) { toggleOwned(c.dataset.id, e.target.checked); return; }
     openDetails(c.dataset.id);
+  });
+  $('invList').addEventListener('click', e => {
+    const r = e.target.closest('.lrow'); if (!r) return;
+    const id = r.dataset.id, t = e.target;
+    if (t.matches('[data-hunt]')) return toggleHunt(id, t.checked);
+    if (t.matches('input.tick')) return toggleOwned(id, t.checked);
+    const dm = t.closest('[data-door-map]'), sm = t.closest('[data-spawn-map]');
+    if (dm) return showOnMap(id, doorsByKey[id].filter(d => d.map === dm.dataset.doorMap));
+    if (sm) return showOnMap(id, spawnsByKey[id].filter(s => s.map === sm.dataset.spawnMap));
+    if (t.closest('input, label')) return;
+    openDetails(id);
+  });
+  $('iview').addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]'); if (!b) return;
+    st.iview = b.dataset.v; saveUi(); renderInv();
   });
   $('iq').addEventListener('input', e => { st.iq = e.target.value; renderInv(); });
   $('imap').addEventListener('change', e => { st.imap = e.target.value; renderInv(); });
@@ -813,8 +916,8 @@ select.sort { margin-left: auto; }
   });
   function openDetails(id) {
     st.sel = id; renderCard(); setPanel(true);
-    $('invGrid').querySelectorAll('.kc.sel').forEach(c => c.classList.remove('sel'));
-    $('invGrid').querySelector(`.kc[data-id="${id}"]`)?.classList.add('sel');
+    $('inv').querySelectorAll('.kc.sel, .lrow.sel').forEach(c => c.classList.remove('sel'));
+    $('inv').querySelectorAll(`[data-id="${id}"]`).forEach(c => c.classList.add('sel'));
     $('closeCard')?.focus();
   }
 
@@ -1050,11 +1153,17 @@ select.sort { margin-left: auto; }
     apply();
   }
 
-  let pinEls = [];
+  // ---- map markers: locks (doors) and keys (fixed key spawns)
+  let pinEls = [], spawnEls = [];
+  const spawnNames = s => s.keys.map(id => keyById[id]?.name || 'Key');
   function buildPins() {
-    const ds = D.doors.filter(d => d.map === st.map);
-    pinsEl.innerHTML = ds.map((d, i) => `<button class="pin" data-i="${i}" aria-label="${esc(keyById[d.key]?.name || 'Locked door')}, grid ${gridRef(d)}"></button>`).join('') + '<div class="tip" id="tip" hidden></div>';
+    const ds = D.doors.filter(d => d.map === st.map), ss = D.spawns.filter(s => s.map === st.map);
+    pinsEl.innerHTML =
+      ds.map((d, i) => `<button class="pin" data-i="${i}" aria-label="Locked door: ${esc(keyById[d.key]?.name || 'unknown key')}, grid ${gridRef(d)}"><svg aria-hidden="true"><use href="#i-lock"/></svg></button>`).join('') +
+      ss.map((sp, i) => `<button class="spawn" data-s="${i}" aria-label="Key spawn: ${esc(spawnNames(sp).join(', '))}, grid ${gridRef(sp)}"><svg aria-hidden="true"><use href="#i-key"/></svg></button>`).join('') +
+      '<div class="tip" id="tip" hidden></div>';
     pinEls = [...pinsEl.querySelectorAll('.pin')].map((el, i) => ({ el, d: ds[i] }));
+    spawnEls = [...pinsEl.querySelectorAll('.spawn')].map((el, i) => ({ el, s: ss[i] }));
     drawPins();
   }
   function drawPins() {
@@ -1062,43 +1171,67 @@ select.sort { margin-left: auto; }
       const isOpen = owned.has(d.key), isSel = st.sel === d.key;
       const off = floorOf(d) !== st.floor;
       el.classList.toggle('open', isOpen);
+      el.querySelector('use').setAttribute('href', isOpen ? '#i-unlock' : '#i-lock');
       el.classList.toggle('hl', isSel && !off);
       el.classList.toggle('off', off);
       el.style.zIndex = off ? 0 : isOpen ? 2 : 1;
       el.classList.toggle('dim', !!st.sel && !isSel);
       el.hidden = !isOpen && !isSel && !st.showLocked;
     }
+    for (const { el, s } of spawnEls) {
+      const isSel = s.keys.includes(st.sel), hunted = s.keys.some(id => hunt.has(id));
+      const off = floorOf(s) !== st.floor;
+      el.classList.toggle('hl', isSel && !off);
+      el.classList.toggle('hunt', hunted && !isSel && !off);
+      el.classList.toggle('off', off);
+      el.classList.toggle('dim', !!st.sel && !isSel && !hunted);
+      el.style.zIndex = isSel || hunted ? 3 : off ? 0 : 1;
+      el.hidden = !st.showSpawns && !isSel && !hunted;
+    }
     placePins();
   }
   function placePins() {
-    for (const { el, d } of pinEls) {
-      el.style.transform = `translate(${view.tx + d.x * cur.w * view.k}px, ${view.ty + d.y * cur.h * view.k}px)`;
-    }
+    const at = o => `translate(${view.tx + o.x * cur.w * view.k}px, ${view.ty + o.y * cur.h * view.k}px)`;
+    for (const { el, d } of pinEls) el.style.transform = at(d);
+    for (const { el, s } of spawnEls) el.style.transform = at(s);
     if (st.hover) showTip(st.hover);
   }
   function showTip(p) {
     const tip = $('tip'); if (!tip) return;
-    const k = keyById[p.d.key];
+    const o = p.d || p.s, fl = cur.floors.length > 1 ? ' · ' + floorOf(o) : '';
+    if (p.d) {
+      const k = keyById[p.d.key];
+      tip.textContent = gridRef(o) + '  ' + (k?.name || 'Locked door') + fl + (owned.has(p.d.key) ? ' · you have it' : '');
+    } else {
+      const names = spawnNames(o), more = o.n - o.keys.length;
+      tip.textContent = gridRef(o) + '  Key spawn: ' + (names.length > 3 ? names.slice(0, 3).join(', ') + ` +${names.length - 3}` : names.join(', ')) +
+        (more > 0 ? ` (or ${plural(more, 'other item')})` : '') + fl;
+    }
     tip.hidden = false;
-    tip.textContent = gridRef(p.d) + '  ' + (k?.name || 'Locked door') + (cur.floors.length > 1 ? ' · ' + floorOf(p.d) : '') + (owned.has(p.d.key) ? ' · you have it' : '');
-    tip.style.left = view.tx + p.d.x * cur.w * view.k + 'px';
-    tip.style.top = view.ty + p.d.y * cur.h * view.k + 'px';
+    tip.style.left = view.tx + o.x * cur.w * view.k + 'px';
+    tip.style.top = view.ty + o.y * cur.h * view.k + 'px';
   }
-  pinsEl.addEventListener('pointerover', e => { const el = e.target.closest('.pin'); if (!el) return; st.hover = pinEls[+el.dataset.i]; showTip(st.hover); });
-  pinsEl.addEventListener('pointerout', e => { if (e.target.closest('.pin')) { st.hover = null; const t = $('tip'); if (t) t.hidden = true; } });
+  const markerAt = e => e.target.closest('.pin, .spawn');
+  const markerOf = el => el.classList.contains('pin') ? pinEls[+el.dataset.i] : spawnEls[+el.dataset.s];
+  pinsEl.addEventListener('pointerover', e => { const el = markerAt(e); if (!el) return; st.hover = markerOf(el); showTip(st.hover); });
+  pinsEl.addEventListener('pointerout', e => { if (markerAt(e)) { st.hover = null; const t = $('tip'); if (t) t.hidden = true; } });
   pinsEl.addEventListener('click', e => {
-    const el = e.target.closest('.pin'); if (!el) return;
-    const d = pinEls[+el.dataset.i].d;
-    if (floorOf(d) !== st.floor) setFloor(floorOf(d));
-    select(d.key, false);
+    const el = markerAt(e); if (!el) return;
+    const m = markerOf(el), o = m.d || m.s;
+    if (floorOf(o) !== st.floor) setFloor(floorOf(o));
+    // a spawn spot can hold several keys: prefer one you're looking for, then the one already open
+    const id = m.d ? m.d.key : (m.s.keys.find(k => hunt.has(k)) || (m.s.keys.includes(st.sel) ? st.sel : m.s.keys[0]));
+    select(id, false);
   });
+  $('showSpawns').checked = st.showSpawns;
+  $('showSpawns').addEventListener('change', e => { st.showSpawns = e.target.checked; saveUi(); drawPins(); });
   $('showLocked').checked = st.showLocked;
   $('showLocked').addEventListener('change', e => { st.showLocked = e.target.checked; saveUi(); drawPins(); });
 
   // pan / pinch / wheel
   const ptrs = new Map();
   stage.addEventListener('pointerdown', e => {
-    if (e.target.closest('.pin, .zoom, .legend, .credit, .floors')) return;
+    if (e.target.closest('.pin, .spawn, .zoom, .legend, .credit, .floors')) return;
     stage.setPointerCapture(e.pointerId);
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     stage.classList.add('drag');
@@ -1170,8 +1303,8 @@ select.sort { margin-left: auto; }
     st.sel = null; $('card').hidden = true; $('ring').hidden = false;
     if (st.view === 'inv') {
       setPanel(false);
-      const c = $('invGrid').querySelector(`.kc[data-id="${id}"]`);
-      if (c) { c.classList.remove('sel'); c.querySelector('[data-open]').focus(); }
+      $('inv').querySelectorAll(`[data-id="${id}"]`).forEach(c => c.classList.remove('sel'));
+      $('inv').querySelector(`[data-id="${id}"] [data-open]`)?.focus();
     }
     renderList(); drawPins();
   }
@@ -1182,6 +1315,9 @@ select.sort { margin-left: auto; }
     const ds = doorsByKey[k.id] || [];
     const meta = [...k.maps.map(mapName), k.price ? rub(k.price) + ' flea avg' : '', ds.length ? plural(ds.length, 'door') : ''].filter(Boolean);
     const floorLabel = d => { const m = mapById[d.map]; const ok = d.floor && m.floors.some(f => f.name === d.floor); return m.floors.length > 1 ? (ok ? d.floor : m.floors.find(f => f.base).name) : ''; };
+    const sps = spawnsByKey[k.id] || [];
+    const spawnBtns = sps.map((s, i) => `<button data-spawn="${i}"><span class="ref">${gridRef(s)}</span><span>${esc(mapName(s.map))}${floorLabel(s) ? ' · ' + esc(floorLabel(s)) : ''}${s.n > 1 ? ` · shared spot (1 of ${s.n} items)` : ''}</span><span class="go">Show on map</span></button>`).join('');
+    const findSec = k.keyLocation || sps.length ? `<div class="sec"><h3 class="lab">Where to find the key</h3>${sps.length ? `<label class="huntsw"><input class="sw" type="checkbox" id="cardHunt" ${hunt.has(k.id) ? 'checked' : ''}><span><b>Looking for this key</b><small>Highlights its ${plural(sps.length, 'fixed spawn')} on the map</small></span></label><div class="doors">${spawnBtns}</div>${k.keyLocation ? '<h4>From the wiki</h4>' : ''}` : ''}${rich(k.keyLocation)}</div>` : '';
     const doorBtns = ds.map((d, i) => `<button data-door="${i}"><span class="ref">${gridRef(d)}</span><span>${esc(mapName(d.map))}${floorLabel(d) ? ' · ' + esc(floorLabel(d)) : ''}${d.power ? ' · needs power' : ''}</span><span class="go">Show on map</span></button>`).join('');
     const has = owned.has(k.id);
     const inInv = st.view === 'inv';
@@ -1193,7 +1329,7 @@ select.sort { margin-left: auto; }
       <label class="own${has ? ' on' : ''}"><input class="tick" type="checkbox" id="cardOwn" ${has ? 'checked' : ''}> I have this key<span class="st">${has ? 'In your cache' : 'Not in your cache'}</span></label>
       <div class="sec loot"><h3 class="lab">Behind the door</h3>${rich(k.behindLock) || '<p class="none">The wiki has no loot listed for this key yet.</p>'}</div>
       ${k.lockLocation || k.usage || ds.length ? `<div class="sec"><h3 class="lab">Where the door is</h3>${rich(k.lockLocation) || (k.usage ? '<p>' + esc(k.usage) + '</p>' : '')}${ds.length ? `<div class="doors">${doorBtns}</div>` : ''}</div>` : ''}
-      ${k.keyLocation ? `<div class="sec"><h3 class="lab">Where to find the key</h3>${rich(k.keyLocation)}</div>` : ''}
+      ${findSec}
       ${k.quests ? `<div class="sec"><h3 class="lab">Quests</h3>${rich(k.quests)}</div>` : ''}
       <div class="sec links">
         ${k.wiki ? `<a href="${esc(k.wiki)}" target="_blank" rel="noopener">Wiki page</a>` : ''}
@@ -1204,14 +1340,27 @@ select.sort { margin-left: auto; }
     card.scrollTop = 0;
     $('closeCard').onclick = closeCard;
     $('cardOwn').onchange = e => toggleOwned(k.id, e.target.checked);
-    card.querySelectorAll('[data-door]').forEach(b => b.onclick = () => {
-      const d = ds[+b.dataset.door];
-      if (st.view !== 'map') { history.pushState(null, '', '#' + d.map); route(); }
-      if (d.map !== st.map) setMap(d.map, true);
-      setFloor(floorOf(d));
-      if (narrow()) setPanel(false);
-      centerOn([d]);
-    });
+    card.querySelectorAll('[data-door]').forEach(b => b.onclick = () => showOnMap(k.id, [ds[+b.dataset.door]]));
+    card.querySelectorAll('[data-spawn]').forEach(b => b.onclick = () => showOnMap(k.id, [sps[+b.dataset.spawn]]));
+    const ch = $('cardHunt'); if (ch) ch.onchange = e => toggleHunt(k.id, e.target.checked);
+  }
+  // Open the map at some doors or spawns of one key (all on one map), from anywhere.
+  function showOnMap(id, pts) {
+    const m = pts[0].map;
+    if (st.view !== 'map') { history.pushState(null, '', '#' + m); route(); }
+    if (m !== st.map) setMap(m, true);
+    st.sel = id;
+    const here = pts.filter(p => p.map === st.map);
+    if (!here.some(p => floorOf(p) === st.floor)) setFloor(floorOf(here[0]));
+    renderCard(); renderList(); drawPins();
+    setPanel(!narrow());
+    centerOn(here);
+  }
+  function toggleHunt(id, on) {
+    on ? hunt.add(id) : hunt.delete(id);
+    saveHunt(); drawPins();
+    if (st.view === 'inv') renderInv();
+    const ch = $('cardHunt'); if (ch && st.sel === id) ch.checked = on;
   }
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;

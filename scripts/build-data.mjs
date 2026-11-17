@@ -138,6 +138,21 @@ wiki.forEach(w => (wikiByUrl[norm(w.wiki)] = w));
 
 const titleCase = s => s.replace(/-/g, ' ').replace(/^./, c => c.toUpperCase());
 
+// Where a game position lands on a map, as fractions of the map image (0..1).
+function place(mid, pos) {
+  const cfg = cfgOf[mid];
+  let fx, fy;
+  if (usesTiles(mid)) {
+    // tiles are placed with tarkov.dev's own projection, so no correction is needed
+    [fx, fy] = tileSpace(cfg).frac(pos.x, pos.z);
+  } else {
+    [fx, fy] = projector(cfg)(pos.x, pos.z);
+    const cal = CALIBRATE[mid]; // SVG-only corrections
+    if (cal) { fx = cal.ax * fx + cal.bx; fy = cal.ay * fy + cal.by; }
+  }
+  return { x: +fx.toFixed(4), y: +fy.toFixed(4), floor: floorName(cfg, pos) };
+}
+
 // Doors
 const doors = [];
 const seen = new Set();
@@ -151,20 +166,9 @@ for (const am of apiMaps) {
     const sig = [mid, l.key, Math.round(l.position.x), Math.round(l.position.z)].join('|');
     if (seen.has(sig)) continue;
     seen.add(sig);
-    const cfg = cfgOf[mid];
-    let fx, fy;
-    if (usesTiles(mid)) {
-      // tiles are placed with tarkov.dev's own projection, so no correction is needed
-      [fx, fy] = tileSpace(cfg).frac(l.position.x, l.position.z);
-    } else {
-      [fx, fy] = projector(cfg)(l.position.x, l.position.z);
-      const cal = CALIBRATE[mid]; // SVG-only corrections
-      if (cal) { fx = cal.ax * fx + cal.bx; fy = cal.ay * fy + cal.by; }
-    }
     doors.push({
       id: l.id, map: mid, key: l.key,
-      x: +fx.toFixed(4), y: +fy.toFixed(4),
-      floor: floorName(cfg, l.position),
+      ...place(mid, l.position),
       type: l.lockType, power: !!l.needsPower,
     });
   }
@@ -220,6 +224,28 @@ for (const it of Object.values(items)) {
   });
 }
 keys.sort((a, b) => a.name.localeCompare(b.name));
+
+// Fixed key spawns: tarkov.dev's loose-loot spots that can hold a key. Big
+// random-loot pools (65-90 possible items) aren't a key's spawn, so a spot
+// counts when it lists at most SPAWN_MAX items and at least one is a key.
+// `n` is how many items the spot can hold (1 = only ever this key).
+const SPAWN_MAX = 10;
+const keySet = new Set(keys.map(k => k.id));
+const spawns = [], seenSpawn = new Set();
+for (const am of apiMaps) {
+  const mid = mapOf[am.normalizedName];
+  if (!mid) continue;
+  for (const l of am.lootLoose || []) {
+    const it = l.items || [];
+    if (!it.length || it.length > SPAWN_MAX) continue;
+    const ks = it.filter(i => keySet.has(i));
+    if (!ks.length) continue;
+    const sig = [mid, Math.round(l.position.x), Math.round(l.position.y), Math.round(l.position.z), ks.sort().join(',')].join('|');
+    if (seenSpawn.has(sig)) continue;
+    seenSpawn.add(sig);
+    spawns.push({ map: mid, keys: ks, n: it.length, ...place(mid, l.position) });
+  }
+}
 
 // Floors: the floor picker's entries, bottom to top. `svg` is the layer
 // group id inside the map SVG (empty when the SVG draws no separate floor).
@@ -336,11 +362,12 @@ const out = {
   extraMaps: NO_SVG,
   keys,
   doors: doors.filter(d => !d.nopin),
+  spawns,
 };
 await writeFile(p('assets/data.js'), 'window.TK_DATA = ' + JSON.stringify(out) + ';\n');
 const pinned = out.doors.length;
 const noWiki = keys.filter(k => !k.behindLock && k.maps.length).map(k => k.name);
-console.log(`${keys.length} keys, ${pinned} doors pinned, ${got} icons`);
+console.log(`${keys.length} keys, ${pinned} doors pinned, ${spawns.length} fixed key spawns for ${new Set(spawns.flatMap(s => s.keys)).size} keys, ${got} icons`);
 console.log('per map:', MAPS.map(m => `${m.name} ${m.doors}`).join(', '));
 console.log(`keys on a map with no loot text (${noWiki.length}):`, noWiki.join('; '));
 

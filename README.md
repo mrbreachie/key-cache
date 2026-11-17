@@ -6,13 +6,14 @@ A free fan tool for Escape from Tarkov. Tick the keys you own, and the map shows
 
 **Open it:** https://mrbreachie.github.io/key-cache/
 
-![Demo: ticking keys on the map, switching maps from the dropdown, opening a key's details and browsing the key inventory](media/key-cache-demo.gif)
+![Demo: ticking keys so their locks open, looking for a key and jumping to where it spawns, Reserve's upper floors, and the key inventory's info and list views](media/key-cache-demo.gif)
 
 ## What it does
 
 - **259 keys and keycards, 258 doors pinned** across 13 maps: Customs, Factory, Interchange, The Lab, Lighthouse, Reserve, Shoreline, Streets of Tarkov, Woods, Ground Zero, Terminal, The Labyrinth and Icebreaker.
-- **Key inventory:** a page with every key as a card: what's behind the door, which maps, flea price and how many doors it opens. Filter by map, owned or missing, and sort by name, price or doors.
-- **Your keys, your doors:** each map lists how many of its doors you can open. Doors you have a key for show as solid white pins; the rest are hollow rings.
+- **Key inventory:** every key in an **Info** view (cards with loot, maps, flea price, doors and spawns) or a **List** view (key, the map its lock is on, the map it spawns on). Map names in the list open the map at the lock or spawn. Filter by map, owned, missing or keys you're looking for.
+- **Your keys, your doors:** each map lists how many of its doors you can open. Locked doors show as padlocks: a white open padlock if you have the key, a dark closed one if you don't.
+- **Where keys spawn:** 198 fixed key spawns (for 89 keys) show as key icons on the map. Switch on "Looking for this key" and its spawns are highlighted; each spawn in a key's details opens the map right there.
 - **Simple navigation:** a map dropdown at the top left, a menu for the pages, your totals and backups, and a key list that slides out over the map.
 - **Floors:** maps with several levels have a floor picker. Pins on other floors are drawn small and faded.
 - **Grid references:** rulers around the map give every door a reference such as `F6`, which also shows in the key list.
