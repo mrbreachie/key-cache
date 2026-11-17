@@ -32,9 +32,6 @@
   --r: 16px; --r-sm: 10px;
   --shadow: 0 16px 40px -12px rgba(0,0,0,.8), 0 2px 8px rgba(0,0,0,.4);
   --top: 60px;
-  --m-land: #252527; --m-trees: #2c2c2e; --m-gravel: #363638; --m-wood: #3c3c3e; --m-tarmac: #434345;
-  --m-rock: #3a3a3c; --m-cement: #636365; --m-locked: #46464a; --m-building: #59595c; --m-floor: #77777a;
-  --m-road: #575759; --m-fence: #8e8e90; --m-rail: #757577; --m-power: #838385; --m-stairs: #a8a8aa; --m-edge: #000;
   --f-body: "Inter", "Segoe UI", system-ui, sans-serif;
   --f-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
   --ease: cubic-bezier(.2,.7,.2,1);
@@ -112,26 +109,8 @@ body[data-view="inv"] .mappick, body[data-view="inv"] .keysbtn { display: none; 
 .mapwrap .faded { opacity: .22; }
 .mapwrap .gone { display: none; }
 
-.mapwrap .mapsvg .land { fill: var(--m-land); }
-.mapwrap .mapsvg .trees { fill: var(--m-trees); }
-.mapwrap .mapsvg .gravel { fill: var(--m-gravel); }
-.mapwrap .mapsvg .wood { fill: var(--m-wood); }
-.mapwrap .mapsvg .tarmac { fill: var(--m-tarmac); }
-.mapwrap .mapsvg .rock { fill: var(--m-rock); }
-.mapwrap .mapsvg .cement { fill: var(--m-cement); }
-.mapwrap .mapsvg .water { fill: #1a1a1a; }
-.mapwrap .mapsvg .building { fill: var(--m-building); }
-.mapwrap .mapsvg .floor { fill: var(--m-floor); }
-.mapwrap .mapsvg .locked { fill: var(--m-locked); }
-.mapwrap .mapsvg .road_tarmac, .mapwrap .mapsvg .road_gravel { stroke: var(--m-road); }
-.mapwrap .mapsvg .fence { stroke: var(--m-fence); }
-.mapwrap .mapsvg .railroad { stroke: var(--m-rail); }
-.mapwrap .mapsvg .powerline { stroke: var(--m-power); }
-.mapwrap .mapsvg .stairs { fill: var(--m-stairs); }
-.mapwrap .mapsvg .task { fill: var(--m-edge); }
-.mapwrap .mapsvg .map_border { stroke: var(--m-edge); }
-.mapwrap .mapsvg .danger, .mapwrap .mapsvg .danger_small { fill: transparent; fill-opacity: 1; stroke: #bdbdbd; }
-.mapwrap .mapsvg .shadow { filter: none; }
+/* The maps keep tarkov.dev's own colours. Their drop shadows are switched off while the map moves, for smooth panning. */
+.stage.moving .mapsvg .shadow { filter: none; }
 
 /* rulers: grid columns A, B, C… across the top, rows 1, 2, 3… down the side */
 .ruler { position: absolute; z-index: 4; pointer-events: none; overflow: hidden; background: rgba(8,8,10,.82); font: 500 11px/1 var(--f-mono); color: var(--faint); }
@@ -145,11 +124,11 @@ body[data-view="inv"] .mappick, body[data-view="inv"] .keysbtn { display: none; 
 .pins { position: absolute; inset: 0; pointer-events: none; }
 .pin {
   position: absolute; left: 0; top: 0; width: 14px; height: 14px; margin: -7px 0 0 -7px; padding: 0;
-  border-radius: 50%; border: 2px solid #d8d8d8; background: rgba(8,8,10,.85); pointer-events: auto;
-  box-shadow: 0 1px 4px rgba(0,0,0,.6); transition: width .15s var(--ease), height .15s var(--ease), margin .15s var(--ease), opacity .15s;
+  border-radius: 50%; border: 2.5px solid #f2f2f2; background: rgba(8,8,10,.9); pointer-events: auto;
+  box-shadow: 0 0 0 1.5px #000, 0 1px 5px rgba(0,0,0,.7); transition: width .15s var(--ease), height .15s var(--ease), margin .15s var(--ease), opacity .15s;
 }
 .pin:hover { border-color: var(--hi); }
-.pin.open { width: 18px; height: 18px; margin: -9px 0 0 -9px; background: var(--hi); border: 3px solid var(--hi-ink); box-shadow: 0 0 0 1.5px var(--hi), 0 0 14px rgba(255,255,255,.45); }
+.pin.open { width: 18px; height: 18px; margin: -9px 0 0 -9px; background: var(--hi); border: 3px solid var(--hi-ink); box-shadow: 0 0 0 1.5px var(--hi), 0 0 0 3px #000, 0 0 14px rgba(255,255,255,.45); }
 .pin.hl { width: 24px; height: 24px; margin: -12px 0 0 -12px; box-shadow: 0 0 0 3px var(--hi-ink), 0 0 0 5px var(--hi), 0 0 22px rgba(255,255,255,.5); z-index: 3 !important; }
 .pin.hl::before { content: ""; position: absolute; inset: -14px; border-radius: 50%; border: 1.5px solid var(--hi); pointer-events: none; opacity: .8; }
 @media (prefers-reduced-motion: no-preference) {
@@ -157,7 +136,7 @@ body[data-view="inv"] .mappick, body[data-view="inv"] .keysbtn { display: none; 
   @keyframes halo { from { transform: scale(.55); opacity: .95; } to { transform: scale(1.25); opacity: 0; } }
 }
 .pin.dim { opacity: .4; }
-.pin.off { width: 8px; height: 8px; margin: -4px 0 0 -4px; opacity: .35; border-width: 1.5px; box-shadow: none; }
+.pin.off { width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; opacity: .55; border-width: 1.5px; box-shadow: 0 0 0 1px #000; }
 .pin.off::before { display: none; }
 .tip {
   position: absolute; pointer-events: none; background: rgba(250,250,250,.97); color: #0b0b0c; padding: 6px 10px; border-radius: 8px;
@@ -183,7 +162,7 @@ body[data-view="inv"] .mappick, body[data-view="inv"] .keysbtn { display: none; 
 .legend .s { display: flex; gap: 8px; align-items: center; }
 .legend .d { width: 14px; height: 14px; border-radius: 50%; flex: none; }
 .legend .d.o { background: var(--hi); border: 3px solid var(--hi-ink); box-shadow: 0 0 0 1.5px var(--hi); width: 16px; height: 16px; }
-.legend .d.l { border: 2px solid #d8d8d8; }
+.legend .d.l { border: 2.5px solid #f2f2f2; box-shadow: 0 0 0 1.5px #000; }
 .legend label { display: flex; gap: 8px; align-items: center; cursor: pointer; padding-left: 14px; border-left: 1px solid var(--line-2); }
 .sw { appearance: none; -webkit-appearance: none; margin: 0; width: 30px; height: 18px; border-radius: 99px; background: #3a3a3e; position: relative; cursor: pointer; transition: background .15s; flex: none; }
 .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #a0a0a5; transition: transform .18s var(--ease), background .15s; }
@@ -422,7 +401,7 @@ select.sort { margin-left: auto; }
       <label><input class="sw" type="checkbox" id="showLocked" checked> Show missing</label>
     </div>
     <footer class="credit">
-      Map images by Shebuka / <a href="https://github.com/the-hideout/tarkov-dev-svg-maps" target="_blank" rel="noopener">tarkov.dev</a> (CC BY-NC-SA 4.0), recoloured. Door positions and prices from <a href="https://tarkov.dev" target="_blank" rel="noopener">tarkov.dev</a>. Key text from the <a href="https://escapefromtarkov.fandom.com" target="_blank" rel="noopener">Escape from Tarkov Wiki</a> (CC BY-NC-SA). Fan-made, not affiliated with Battlestate Games.
+      Map images by Shebuka / <a href="https://github.com/the-hideout/tarkov-dev-svg-maps" target="_blank" rel="noopener">tarkov.dev</a> (CC BY-NC-SA 4.0). Door positions and prices from <a href="https://tarkov.dev" target="_blank" rel="noopener">tarkov.dev</a>. Key text from the <a href="https://escapefromtarkov.fandom.com" target="_blank" rel="noopener">Escape from Tarkov Wiki</a> (CC BY-NC-SA). Fan-made, not affiliated with Battlestate Games.
     </footer>
   </section>
 
@@ -850,22 +829,9 @@ select.sort { margin-left: auto; }
     wrap.style.width = cur.w + 'px'; wrap.style.height = cur.h + 'px';
     const seq = ++loadSeq, m = cur;
     loadSvg(m.svg)
-      .then(txt => { if (seq !== loadSeq) return; img.innerHTML = txt; addPatterns(); applyFloor(); })
+      .then(txt => { if (seq !== loadSeq) return; img.innerHTML = txt; applyFloor(); })
       .catch(() => { if (seq === loadSeq) img.innerHTML = '<div class="nomap">The map image did not load. Switch maps and back to try again.</div>'; });
     buildGrid(); fit(); buildPins(); renderFloors();
-  }
-  // Water gets horizontal lines, trees a dot screen, danger zones a hatch: told apart by texture, not hue.
-  function addPatterns() {
-    const svg = img.querySelector('svg'); if (!svg) return;
-    const s = Math.max(cur.w, cur.h) / 240, ns = 'http://www.w3.org/2000/svg';
-    const defs = document.createElementNS(ns, 'defs');
-    defs.innerHTML =
-      `<pattern id="tk-water" patternUnits="userSpaceOnUse" width="${s}" height="${s}"><rect width="${s}" height="${s}" fill="#1c1c1c"/><rect y="${s * .4}" width="${s}" height="${s * .22}" fill="#4a4a4a"/></pattern>` +
-      `<pattern id="tk-trees" patternUnits="userSpaceOnUse" width="${s * 1.2}" height="${s * 1.2}"><rect width="${s * 1.2}" height="${s * 1.2}" fill="#2d2d2d"/><circle cx="${s * .6}" cy="${s * .6}" r="${s * .2}" fill="#444"/></pattern>` +
-      `<pattern id="tk-hatch" patternUnits="userSpaceOnUse" width="${s * 1.1}" height="${s * 1.1}" patternTransform="rotate(45)"><rect width="${s * .3}" height="${s * 1.1}" fill="#bdbdbd" fill-opacity=".5"/></pattern>`;
-    svg.prepend(defs);
-    const paint = (sel, id) => svg.querySelectorAll(sel).forEach(el => { el.style.fill = `url(#${id})`; });
-    paint('.water', 'tk-water'); paint('.trees', 'tk-trees'); paint('.danger, .danger_small', 'tk-hatch');
   }
   function buildGrid() {
     grid = gridOf(cur);

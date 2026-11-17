@@ -20,7 +20,7 @@ A free fan tool for Escape from Tarkov. Tick the keys you own, and the map shows
 - **Search** across key names, door locations and loot, for example "LEDX".
 - **Saved in your browser:** your ticks are kept in this browser only. Use "Back up or move your keys" to copy them to another browser or device.
 
-The design is greyscale and readable without colour vision. Every state is shown by brightness, shape or pattern, never by colour alone.
+The map images keep tarkov.dev's colours. Everything else is greyscale: door and key states are shown by brightness and shape, never by colour alone.
 
 ## Updating the data
 
@@ -60,7 +60,7 @@ Door positions use the same projection as tarkov.dev. The Lab's map image has no
 ## Credits and licences
 
 - **Code** (`index.html`, `scripts/`): MIT, see [LICENSE](LICENSE).
-- **Map images:** by Shebuka for [tarkov.dev](https://github.com/the-hideout/tarkov-dev-svg-maps), CC BY-NC-SA 4.0. They're recoloured here, and the recoloured versions use the same licence.
+- **Map images:** by Shebuka for [tarkov.dev](https://github.com/the-hideout/tarkov-dev-svg-maps), CC BY-NC-SA 4.0.
 - **Key text:** [Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com), CC BY-NC-SA.
 - **Door positions, items, prices and icons:** [tarkov.dev](https://tarkov.dev).
 
