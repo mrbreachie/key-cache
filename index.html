@@ -314,6 +314,14 @@ select.sort { margin-left: auto; }
 .invlist { margin-top: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); overflow: hidden; }
 .lhead, .lrow { display: grid; grid-template-columns: 40px minmax(220px, 2fr) minmax(140px, 1.3fr) minmax(140px, 1.3fr) 96px; gap: 12px; align-items: center; padding: 9px 16px; }
 .lhead { font: 600 12px/1.2 var(--f-body); letter-spacing: .03em; color: var(--muted); background: var(--panel-2); border-bottom: 1px solid var(--line); position: sticky; top: 0; }
+.lsort { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px; margin-left: -6px; border-radius: 6px; font: inherit; letter-spacing: inherit; color: var(--muted); }
+.lsort:hover { color: var(--fg); background: rgba(255,255,255,.06); }
+.lsort:focus-visible { outline: 2px solid var(--hi); outline-offset: 1px; }
+.lhead .lsort { justify-self: start; }
+.lsort span { color: var(--faint); font: 500 12px/1 var(--f-mono); font-variant-emoji: text; }
+.lsort.on { color: var(--fg); }
+.lsort.on span { color: var(--fg); }
+.lhead .lsort:last-child { justify-self: center; margin-left: 0; }
 .lrow { border-bottom: 1px solid var(--line); cursor: pointer; transition: background .12s; }
 .lrow:last-child { border-bottom: 0; }
 .lrow:hover { background: var(--panel-2); }
@@ -395,7 +403,9 @@ select.sort { margin-left: auto; }
   .seg button { padding: 0 8px; white-space: nowrap; font-size: 13px; }
   .seg button { flex: 1; }
   .invgrid { grid-template-columns: minmax(0, 1fr); }
-  .lhead { display: none; }
+  .lhead { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 8px 12px; }
+  .lhead > span { display: none; }
+  .lhead .lsort:last-child { justify-self: auto; margin-left: -6px; }
   .lrow { grid-template-columns: 30px minmax(0, 1fr); gap: 8px 10px; padding: 12px; }
   .lrow .lcell, .lrow .lhunt { grid-column: 2; justify-content: flex-start; }
   .lrow [data-label]::before { content: attr(data-label) ": "; color: var(--faint); font-size: 12.5px; margin-right: 2px; }
@@ -887,11 +897,28 @@ select.sort { margin-left: auto; }
       const parts = [...withDoor.map(m => `<button class="mlink" data-door-map="${m}" title="Show the lock on the map">${esc(mapName(m))}</button>`), ...rest.map(m => `<span>${esc(mapName(m))}</span>`)];
       return parts.length ? parts.join('') : `<span class="none">${opensNothing(k) ? 'Opens no lock' : 'No map listed'}</span>`;
     };
+    // Column sorting: click a header to sort by it, click again to reverse.
+    // Keys with nothing in that column always go last. The Sort menu clears it.
+    const lockNames = k => { const w = [...new Set((doorsByKey[k.id] || []).map(d => d.map))]; return [...w, ...k.maps.filter(m => !w.includes(m))].map(mapName).join(', '); };
+    const spawnNames = k => [...new Set((spawnsByKey[k.id] || []).map(s => s.map))].map(mapName).join(', ');
+    if (st.lsort) {
+      const { col, dir } = st.lsort;
+      const val = col === 'lock' ? lockNames : col === 'spawn' ? spawnNames : col === 'hunt' ? (k => hunt.has(k.id) ? 'a' : spawnsByKey[k.id] ? 'b' : '') : (k => k.name);
+      ks = ks.slice().sort((a, b) => {
+        const A = val(a), B = val(b);
+        if (!A !== !B) return A ? -1 : 1;
+        return dir * A.localeCompare(B) || a.name.localeCompare(b.name);
+      });
+    }
+    const head = (col, label) => {
+      const on = st.lsort?.col === col;
+      return `<button class="lsort${on ? ' on' : ''}" data-sort="${col}" aria-label="Sort by ${label}${on ? (st.lsort.dir > 0 ? ', ascending' : ', descending') : ''}">${label}<span aria-hidden="true">${on ? (st.lsort.dir > 0 ? '↑' : '↓') : '↕'}</span></button>`;
+    };
     const spawnCell = k => {
       const ms = [...new Set((spawnsByKey[k.id] || []).map(s => s.map))];
       return ms.length ? ms.map(m => `<button class="mlink" data-spawn-map="${m}" title="Show where it spawns">${esc(mapName(m))}</button>`).join('') : '<span class="none">No fixed spawn</span>';
     };
-    $('invList').innerHTML = ks.length ? `<div class="lhead" aria-hidden="true"><span></span><span>Key</span><span>Lock is on</span><span>Spawns on</span><span>Looking for</span></div>` +
+    $('invList').innerHTML = `<div class="lhead"><span></span>${head('name', 'Key')}${head('lock', 'Lock is on')}${head('spawn', 'Spawns on')}${head('hunt', 'Looking for')}</div>` + (ks.length ? '' : '<div class="empty">No keys match.</div>') +
       ks.map(k => {
         const has = owned.has(k.id), sp = spawnsByKey[k.id]?.length;
         return `<div class="lrow${has ? ' owned' : ''}${st.sel === k.id ? ' sel' : ''}" data-id="${k.id}">
@@ -901,7 +928,7 @@ select.sort { margin-left: auto; }
           <div class="lcell" data-label="Spawns on">${spawnCell(k)}</div>
           <div class="lhunt" data-label="Looking for">${sp ? `<input class="sw" type="checkbox" data-hunt aria-label="Looking for ${esc(k.name)}" ${hunt.has(k.id) ? 'checked' : ''}>` : '<span class="none">–</span>'}</div>
         </div>`;
-      }).join('') : '<div class="empty">No keys match.</div>';
+      }).join('');
   }
   $('invGrid').addEventListener('click', e => {
     const c = e.target.closest('.kc'); if (!c) return;
@@ -909,6 +936,14 @@ select.sort { margin-left: auto; }
     openDetails(c.dataset.id);
   });
   $('invList').addEventListener('click', e => {
+    const sb = e.target.closest('[data-sort]');
+    if (sb) {
+      const col = sb.dataset.sort;
+      st.lsort = st.lsort?.col === col ? { col, dir: -st.lsort.dir } : { col, dir: 1 };
+      renderInv();
+      $('invList').querySelector(`[data-sort="${col}"]`)?.focus();
+      return;
+    }
     const r = e.target.closest('.lrow'); if (!r) return;
     const id = r.dataset.id, t = e.target;
     if (t.matches('[data-hunt]')) return toggleHunt(id, t.checked);
@@ -925,7 +960,7 @@ select.sort { margin-left: auto; }
   });
   $('iq').addEventListener('input', e => { st.iq = e.target.value; renderInv(); });
   $('imap').addEventListener('change', e => { st.imap = e.target.value; renderInv(); });
-  $('isort').addEventListener('change', e => { st.isort = e.target.value; saveUi(); renderInv(); });
+  $('isort').addEventListener('change', e => { st.isort = e.target.value; st.lsort = null; saveUi(); renderInv(); });
   $('iown').addEventListener('click', e => {
     const b = e.target.closest('button[data-own]'); if (!b) return;
     st.iown = b.dataset.own;

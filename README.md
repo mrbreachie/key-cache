@@ -11,7 +11,7 @@ A free fan tool for Escape from Tarkov. Tick the keys you own, and the map shows
 ## What it does
 
 - **259 keys and keycards, 258 doors pinned** across 13 maps: Customs, Factory, Interchange, The Lab, Lighthouse, Reserve, Shoreline, Streets of Tarkov, Woods, Ground Zero, Terminal, The Labyrinth and Icebreaker.
-- **Key inventory:** every key in an **Info** view (cards with loot, maps, flea price, doors and spawns) or a **List** view (key, the map its lock is on, the map it spawns on). Map names in the list open the map at the lock or spawn. Filter by map, owned, missing or keys you're looking for.
+- **Key inventory:** every key in an **Info** view (cards with loot, maps, flea price, doors and spawns) or a **List** view (key, the map its lock is on, the map it spawns on). Map names in the list open the map at the lock or spawn, and clicking a column heading (Key, Lock is on, Spawns on, Looking for) sorts by it; click again to reverse. Filter by map, owned, missing or keys you're looking for.
 - **Your keys, your doors:** each map lists how many of its doors you can open. Locked doors show as padlocks: a white open padlock if you have the key, a dark closed one if you don't.
 - **Where keys spawn:** 198 fixed key spawns (for 89 keys) show as key icons on the map. Switch on "Looking for this key" and its spawns are highlighted; each spawn in a key's details opens the map right there.
 - **Simple navigation:** a map dropdown at the top left, a menu for the pages, your totals and backups, and a key list that slides out over the map.
