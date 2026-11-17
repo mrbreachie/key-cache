@@ -6,7 +6,9 @@ A free fan tool for Escape from Tarkov. Tick the keys you own, and the map shows
 
 **Open it:** https://mrbreachie.github.io/key-cache/
 
-![Demo: ticking keys so their locks open, looking for a key and jumping to where it spawns, Reserve's upper floors, and the key inventory's info and list views](media/key-cache-demo.gif)
+![Demo: ticking keys so their padlocks open, looking for a key and jumping to its spawn, the Drawn / Satellite switch, Reserve's floors, and the key inventory's list view sorted by column](media/key-cache-demo.gif)
+
+A sharper version is in [media/key-cache-demo.mp4](media/key-cache-demo.mp4).
 
 ## What it does
 
