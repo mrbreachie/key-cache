@@ -1,0 +1,17 @@
+# Private working notes (personal details, private links): kept off GitHub
+CLAUDE.md
+
+# Large API caches (26 MB). build-data downloads them again when missing,
+# and otherwise at most once every 24 hours.
+data/api-maps.json
+data/api-items.json
+data/icon-misses.json
+*.tmp
+
+# Generated copies of the map SVGs, used only for local checks.
+# The page loads site/maps/*.js.
+site/maps/*.svg
+
+node_modules/
+.DS_Store
+Thumbs.db

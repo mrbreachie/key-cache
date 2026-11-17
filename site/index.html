@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tarkov Key Ring</title>
+<meta name="description" content="Tick the Escape from Tarkov keys you own and see every locked door you can open, what loot is behind it and where to find each key. A free fan tool.">
+<meta name="theme-color" content="#0f0f0f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230f0f0f'/%3E%3Ccircle cx='11' cy='16' r='6' fill='none' stroke='%23fff' stroke-width='3'/%3E%3Cpath d='M17 16h11M24 16v5M28 16v4' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap">
+<style>
+/* Layout: survey sheet. Map index on the left, gridded map with rulers in the middle, key ledger / key dossier on the right.
+   Built for achromatopsia: strictly greyscale, low glare, and every state is told by brightness + shape + pattern, never hue.
+   White is reserved for "you can open this". Deliberately one dark look. */
+:root {
+  --bg: #0f0f0f;        /* page ground */
+  --panel: #171717;     /* ledger + dossier */
+  --panel-2: #212121;   /* hover / raised */
+  --line: #2f2f2f;
+  --line-2: #4a4a4a;
+  --fg: #e6e6e6;        /* text: not pure white, less glare */
+  --muted: #a6a6a6;
+  --hi: #ffffff;        /* doors you can open, keys you own */
+  --hi-ink: #000000;    /* text on white */
+  --slot: #262626;      /* inventory cell behind icons */
+  --grid: rgba(255,255,255,.10);
+  --stage: #0a0a0a;
+  /* map tones: luminance steps, all kept below the white used for pins */
+  --m-land: #272727; --m-trees: #2f2f2f; --m-gravel: #3a3a3a; --m-wood: #404040; --m-tarmac: #474747;
+  --m-rock: #3e3e3e; --m-cement: #686868; --m-locked: #4a4a4a; --m-building: #5e5e5e; --m-floor: #7c7c7c;
+  --m-road: #5c5c5c; --m-fence: #949494; --m-rail: #7a7a7a; --m-power: #888; --m-stairs: #adadad; --m-edge: #000;
+  --f-display: "Archivo", "Arial Black", "Helvetica Neue", sans-serif;
+  --f-body: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "Martian Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 15px/1.5 var(--f-body); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.g { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.lab { font: 600 11.5px/1 var(--f-display); font-stretch: 125%; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+.app { height: 100%; display: grid; grid-template-columns: 236px minmax(0, 1fr) 392px; }
+
+/* ---------- map index ---------- */
+.rail { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
+.brand { padding-block: 18px 16px; border-bottom: 1px solid var(--line); }
+.brand .pre { font: 500 11px/1 var(--f-mono); letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+.brand h1 { margin: 6px 0 0; font: 800 27px/.92 var(--f-display); font-stretch: 125%; letter-spacing: -.01em; text-transform: uppercase; }
+.brand h1 span { display: block; }
+.maps { display: flex; flex-direction: column; overflow-y: auto; min-height: 0; flex: 1; padding-block: 8px; }
+.maps button {
+  display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: baseline; text-align: left;
+  border: 0; background: transparent; cursor: pointer; padding-block: 9px; color: var(--muted);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px; position: relative;
+}
+.maps button:hover { color: var(--fg); background: var(--panel); }
+.maps .mn { font: 700 15px/1.1 var(--f-display); font-stretch: 112%; text-transform: uppercase; letter-spacing: .03em; }
+.maps .n { font: 400 11.5px/1 var(--f-mono); }
+.maps .n b { font-weight: 600; color: var(--fg); }
+.maps button[aria-pressed="true"] { color: var(--fg); background: var(--panel-2); }
+.maps button[aria-pressed="true"] .mn::before { content: "▸ "; }
+.ticks { grid-column: 1 / -1; display: flex; gap: 1px; height: 7px; }
+.ticks i { flex: 1; background: var(--line-2); opacity: .45; }
+.ticks i.on { background: var(--hi); opacity: 1; }
+.rail-foot { border-top: 1px solid var(--line); padding-block: 14px; display: grid; gap: 4px; }
+.rail-foot b { font: 800 26px/1 var(--f-display); font-stretch: 125%; }
+.rail-foot small { color: var(--muted); font-size: 13px; }
+
+/* ---------- map ---------- */
+.stage { position: relative; min-height: 0; overflow: hidden; background: var(--stage); touch-action: none; cursor: grab; contain: layout paint; }
+.stage.drag { cursor: grabbing; }
+.mapwrap { position: absolute; left: 0; top: 0; transform-origin: 0 0; user-select: none; pointer-events: none; contain: layout paint size; }
+.stage.moving .mapwrap { will-change: transform; }
+.stage.moving .tip { display: none; }
+#mapImg, #mapImg svg { display: block; width: 100%; height: 100%; }
+#mapImg svg { overflow: visible; }
+#mapImg svg > g { transition: opacity .18s; }
+.mapwrap svg.grid { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
+.grid path { stroke: var(--grid); }
+.mapwrap .faded { opacity: .22; }
+.mapwrap .gone { display: none; }
+
+/* greyscale map: overrides the SVG's own palette */
+.mapwrap .mapsvg .land { fill: var(--m-land); }
+.mapwrap .mapsvg .trees { fill: var(--m-trees); }
+.mapwrap .mapsvg .gravel { fill: var(--m-gravel); }
+.mapwrap .mapsvg .wood { fill: var(--m-wood); }
+.mapwrap .mapsvg .tarmac { fill: var(--m-tarmac); }
+.mapwrap .mapsvg .rock { fill: var(--m-rock); }
+.mapwrap .mapsvg .cement { fill: var(--m-cement); }
+.mapwrap .mapsvg .water { fill: #1a1a1a; }
+.mapwrap .mapsvg .building { fill: var(--m-building); }
+.mapwrap .mapsvg .floor { fill: var(--m-floor); }
+.mapwrap .mapsvg .locked { fill: var(--m-locked); }
+.mapwrap .mapsvg .road_tarmac, .mapwrap .mapsvg .road_gravel { stroke: var(--m-road); }
+.mapwrap .mapsvg .fence { stroke: var(--m-fence); }
+.mapwrap .mapsvg .railroad { stroke: var(--m-rail); }
+.mapwrap .mapsvg .powerline { stroke: var(--m-power); }
+.mapwrap .mapsvg .stairs { fill: var(--m-stairs); }
+.mapwrap .mapsvg .task { fill: var(--m-edge); }
+.mapwrap .mapsvg .map_border { stroke: var(--m-edge); }
+.mapwrap .mapsvg .danger, .mapwrap .mapsvg .danger_small { fill: transparent; fill-opacity: 1; stroke: #bdbdbd; }
+.mapwrap .mapsvg .shadow { filter: none; }
+
+/* rulers: grid columns A, B, C… across the top, rows 1, 2, 3… down the side */
+.ruler { position: absolute; z-index: 4; pointer-events: none; overflow: hidden; background: color-mix(in srgb, var(--bg) 88%, transparent); font: 500 11px/1 var(--f-mono); color: var(--muted); }
+.ruler.rx { left: 0; right: 0; top: 0; height: 24px; border-bottom: 1px solid var(--line); }
+.ruler.ry { left: 0; top: 24px; bottom: 0; width: 24px; border-right: 1px solid var(--line); }
+.ruler span { position: absolute; left: 0; top: 0; }
+.ruler.rx span { width: 24px; margin-left: -12px; text-align: center; top: 7px; }
+.ruler.ry span { height: 12px; margin-top: -6px; width: 24px; text-align: center; }
+.ruler-corner { position: absolute; left: 0; top: 0; width: 24px; height: 24px; z-index: 5; background: var(--bg); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+
+.pins { position: absolute; inset: 0; pointer-events: none; }
+.pin {
+  position: absolute; left: 0; top: 0; width: 14px; height: 14px; margin: -7px 0 0 -7px; padding: 0;
+  border-radius: 50%; border: 2px solid var(--fg); background: var(--stage); cursor: pointer; pointer-events: auto;
+}
+.pin.open { width: 18px; height: 18px; margin: -9px 0 0 -9px; background: var(--hi); border: 3px solid var(--hi-ink); box-shadow: 0 0 0 2px var(--hi); }
+.pin.hl { width: 24px; height: 24px; margin: -12px 0 0 -12px; box-shadow: 0 0 0 3px var(--hi-ink), 0 0 0 5px var(--hi); z-index: 3 !important; }
+.pin.hl::before {
+  content: ""; position: absolute; inset: -18px; pointer-events: none;
+  background:
+    linear-gradient(var(--hi), var(--hi)) top / 2px 9px no-repeat,
+    linear-gradient(var(--hi), var(--hi)) bottom / 2px 9px no-repeat,
+    linear-gradient(var(--hi), var(--hi)) left / 9px 2px no-repeat,
+    linear-gradient(var(--hi), var(--hi)) right / 9px 2px no-repeat;
+}
+.pin.dim { opacity: .4; }
+.pin.off { width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; opacity: .35; border-width: 1.5px; box-shadow: none; }
+.pin.off::before { display: none; }
+.tip {
+  position: absolute; pointer-events: none; background: var(--fg); color: var(--bg); padding: 5px 9px;
+  font: 500 12px/1.3 var(--f-mono); white-space: nowrap; transform: translate(-50%, calc(-100% - 16px)); z-index: 6;
+}
+
+.floors { position: absolute; left: 36px; top: 36px; z-index: 4; display: flex; flex-direction: column-reverse; background: var(--panel); border: 1px solid var(--line-2); }
+.floors .cap { order: 99; padding: 8px 10px 6px; }
+.floors button {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px; min-width: 150px;
+  border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; text-align: left;
+  font: 700 13.5px/1 var(--f-display); font-stretch: 112%; text-transform: uppercase; letter-spacing: .04em; padding: 9px 10px;
+}
+.floors button:hover { color: var(--fg); background: var(--panel-2); }
+.floors button[aria-pressed="true"] { background: var(--hi); color: var(--hi-ink); }
+.floors .n { font: 400 11px var(--f-mono); letter-spacing: 0; }
+
+.zoom { position: absolute; right: 12px; top: 36px; z-index: 4; display: grid; border: 1px solid var(--line-2); background: var(--panel); }
+.zoom button { width: 38px; height: 38px; border: 0; background: transparent; cursor: pointer; font: 500 18px/1 var(--f-mono); }
+.zoom button + button { border-top: 1px solid var(--line); }
+.zoom button:hover { background: var(--panel-2); }
+
+.legend { position: absolute; left: 36px; bottom: 12px; z-index: 4; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line-2); font-size: 13px; }
+.legend .s { display: flex; gap: 7px; align-items: center; }
+.legend .d { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.legend .d.o { background: var(--hi); border: 3px solid var(--hi-ink); box-shadow: 0 0 0 2px var(--hi); width: 16px; height: 16px; }
+.legend .d.l { border: 2px solid var(--fg); }
+.legend label { display: flex; gap: 7px; align-items: center; cursor: pointer; color: var(--muted); }
+footer.credit { position: absolute; right: 12px; bottom: 12px; z-index: 4; max-width: 44%; text-align: right; font-size: 11.5px; line-height: 1.45; color: var(--muted); text-shadow: 0 0 4px #000, 0 0 2px #000; }
+footer.credit a { color: inherit; }
+.nomap { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); padding: 24px; text-align: center; }
+
+/* ---------- ledger (key list) ---------- */
+.panel { display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-left: 1px solid var(--line); }
+.ring { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.ring-head { padding-block: 18px 14px; display: grid; gap: 12px; border-bottom: 1px solid var(--line); }
+.where { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.where h2 { margin: 0; font: 800 22px/1 var(--f-display); font-stretch: 125%; text-transform: uppercase; }
+.meter { display: grid; gap: 7px; }
+.meter .fig { display: flex; align-items: baseline; gap: 8px; }
+.meter .fig b { font: 800 40px/.9 var(--f-display); font-stretch: 125%; font-variant-numeric: tabular-nums; }
+.meter .fig span { color: var(--muted); }
+.meter .ticks { height: 12px; gap: 2px; }
+.search { width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line-2); border-radius: 0; }
+.search::placeholder { color: #8a8a8a; }
+.filters { display: flex; gap: 0; flex-wrap: wrap; align-items: stretch; }
+.chip { border: 1px solid var(--line-2); background: transparent; color: var(--muted); padding: 6px 10px; font-size: 13px; cursor: pointer; margin-right: -1px; }
+.chip:hover { color: var(--fg); }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; position: relative; }
+select.sort { margin-left: auto; background: var(--bg); border: 1px solid var(--line-2); border-radius: 0; font-size: 13px; padding: 4px 6px; }
+.list { overflow-y: auto; min-height: 0; flex: 1; }
+.row { display: grid; grid-template-columns: auto 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding-block: 8px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.row:hover { background: var(--panel-2); }
+.row.sel { background: var(--panel-2); outline: 1px solid var(--line-2); outline-offset: -1px; }
+.row .nm div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.row.owned .nm div { color: var(--fg); font-weight: 700; }
+.row .nm small { display: block; color: var(--muted); font: 400 11.5px/1.4 var(--f-mono); }
+.row .price { font: 400 12px var(--f-mono); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.slot { width: 44px; height: 44px; background: var(--slot); border: 1px solid var(--line-2); object-fit: contain; display: block;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 11px 11px; }
+.tick { appearance: none; -webkit-appearance: none; width: 22px; height: 22px; margin: 0; border: 2px solid var(--line-2); background: transparent; display: grid; place-content: center; cursor: pointer; flex: none; }
+.tick:hover { border-color: var(--fg); }
+.tick:checked { background: var(--hi); border-color: var(--hi); }
+.tick:checked::after { content: ""; width: 11px; height: 6px; border: solid var(--hi-ink); border-width: 0 0 3px 3px; transform: translateY(-2px) rotate(-45deg); }
+.empty { padding: 28px 16px; color: var(--muted); }
+.panel-foot { border-top: 1px solid var(--line); padding-block: 12px; display: grid; gap: 8px; font-size: 13px; color: var(--muted); }
+.panel-foot summary { cursor: pointer; color: var(--fg); }
+.panel-foot textarea { width: 100%; height: 66px; background: var(--bg); border: 1px solid var(--line-2); border-radius: 0; font: 11px var(--f-mono); padding: 7px; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.btn { border: 1px solid var(--line-2); background: var(--panel-2); padding: 6px 11px; cursor: pointer; font-size: 13px; border-radius: 0; }
+.btn:hover { border-color: var(--fg); }
+
+/* ---------- dossier ---------- */
+.card { display: flex; flex-direction: column; overflow-y: auto; min-height: 0; flex: 1; }
+.back { display: flex; align-items: center; gap: 8px; border: 0; border-bottom: 1px solid var(--line); background: transparent; cursor: pointer; padding-block: 12px; text-align: left; color: var(--muted); }
+.back:hover { color: var(--fg); background: var(--panel-2); }
+.dhead { padding-block: 18px 16px; display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 16px; align-items: start; }
+.dhead .slot { width: 80px; height: 80px; background-size: 20px 20px; }
+.dhead h2 { margin: 0 0 10px; font: 800 21px/1.08 var(--f-display); font-stretch: 112%; text-wrap: balance; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.meta span { border: 1px solid var(--line-2); padding: 3px 7px; font: 400 11px/1.2 var(--f-mono); color: var(--muted); }
+.own { display: flex; align-items: center; gap: 12px; padding-block: 13px; cursor: pointer; border-block: 1px solid var(--line); font-weight: 600; }
+.own:hover { background: var(--panel-2); }
+.own.on { background: var(--hi); color: var(--hi-ink); }
+.own.on .tick { border-color: var(--hi-ink); background: var(--hi-ink); }
+.own.on .tick:checked::after { border-color: var(--hi); }
+.own .st { margin-left: auto; font: 400 11.5px var(--f-mono); opacity: .75; }
+.sec { padding-block: 16px; border-bottom: 1px solid var(--line); }
+.sec h3 { margin: 0 0 10px; }
+.sec.loot { background: repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.035) 9px 10px); }
+.sec.loot h3 { color: var(--fg); }
+.sec ul { margin: 0; padding-left: 18px; }
+.sec li + li { margin-top: 4px; }
+.sec li::marker { color: var(--muted); }
+.sec h4 { margin: 12px 0 4px; font-size: 14px; }
+.sec p { margin: 0 0 6px; max-width: 62ch; }
+.sec .none { color: var(--muted); font-style: italic; }
+.doors { display: grid; gap: 0; margin-top: 12px; }
+.doors button { display: grid; grid-template-columns: 46px 1fr auto; gap: 10px; align-items: baseline; text-align: left; border: 1px solid var(--line-2); margin-top: -1px; background: transparent; padding: 9px 10px; cursor: pointer; }
+.doors button:hover { background: var(--panel-2); }
+.doors .ref { font: 600 13px var(--f-mono); }
+.doors .go { font: 400 11px var(--f-mono); color: var(--muted); }
+.links { display: flex; gap: 18px; flex-wrap: wrap; }
+.links a { color: var(--fg); text-underline-offset: 3px; }
+
+@media (max-width: 1180px) {
+  .app { grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto minmax(0, 1fr); }
+  .rail { grid-column: 1 / -1; flex-direction: row; align-items: stretch; border-right: 0; border-bottom: 1px solid var(--line); }
+  .brand { border-bottom: 0; border-right: 1px solid var(--line); padding-block: 10px; flex: none; }
+  .brand h1 { font-size: 19px; }
+  .maps { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding-block: 0; }
+  .maps button { min-width: 132px; flex: none; padding: 10px 12px; border-right: 1px solid var(--line); }
+  .rail-foot { display: none; }
+}
+@media (max-width: 760px) {
+  html, body { height: auto; }
+  .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
+  .rail { flex-direction: column; }
+  .brand { border-right: 0; border-bottom: 1px solid var(--line); }
+  .brand h1 span { display: inline; }
+  .stage { height: 64vh; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); }
+  .list { max-height: 72vh; }
+  .floors { flex-direction: row-reverse; flex-wrap: wrap-reverse; max-width: calc(100% - 90px); }
+  .floors .cap { display: none; }
+  .floors button { min-width: 0; border-top: 0; border-left: 1px solid var(--line); font-size: 12px; padding: 8px; gap: 8px; }
+  .legend { left: 30px; right: 8px; bottom: 8px; gap: 10px; font-size: 12px; }
+  footer.credit { position: static; max-width: none; text-align: left; padding: 12px 16px; text-shadow: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card { animation: in .16s ease-out; }
+  @keyframes in { from { transform: translateX(8px); opacity: .5; } }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <nav class="rail" aria-label="Maps">
+    <div class="brand g">
+      <div class="pre" id="built">Escape from Tarkov</div>
+      <h1><span>Key</span> <span>Ring</span></h1>
+    </div>
+    <div class="maps" id="maps"></div>
+    <div class="rail-foot g">
+      <span class="lab">Your ring</span>
+      <b id="allKeys">0</b>
+      <small id="allDoors"></small>
+    </div>
+  </nav>
+
+  <section class="stage" id="stage" aria-label="Map">
+    <div class="mapwrap" id="mapWrap" role="img">
+      <div id="mapImg"></div>
+      <svg class="grid" id="gridSvg" preserveAspectRatio="none" aria-hidden="true"></svg>
+    </div>
+    <div class="pins" id="pins"></div>
+    <div class="ruler rx" id="rx" aria-hidden="true"></div>
+    <div class="ruler ry" id="ry" aria-hidden="true"></div>
+    <div class="ruler-corner" aria-hidden="true"></div>
+    <nav class="floors" id="floors" aria-label="Floors"></nav>
+    <div class="zoom">
+      <button id="zIn" aria-label="Zoom in">+</button>
+      <button id="zOut" aria-label="Zoom out">−</button>
+      <button id="zFit" aria-label="Fit map" style="font-size:14px">⤢</button>
+    </div>
+    <div class="legend">
+      <span class="s"><i class="d o"></i>You can open</span>
+      <span class="s"><i class="d l"></i>Key missing</span>
+      <label><input type="checkbox" id="showLocked" checked> Show missing</label>
+    </div>
+    <footer class="credit">
+      Map images by Shebuka / <a href="https://github.com/the-hideout/tarkov-dev-svg-maps" target="_blank" rel="noopener">tarkov.dev</a> (CC BY-NC-SA 4.0), recoloured. Door positions and prices from <a href="https://tarkov.dev" target="_blank" rel="noopener">tarkov.dev</a>. Key text from the <a href="https://escapefromtarkov.fandom.com" target="_blank" rel="noopener">Escape from Tarkov Wiki</a> (CC BY-NC-SA). Fan-made, not affiliated with Battlestate Games.
+    </footer>
+  </section>
+
+  <aside class="panel" id="panel" aria-label="Keys">
+    <div class="ring" id="ring">
+      <div class="ring-head g">
+        <div class="where"><h2 id="tMap">Customs</h2><span class="lab" id="tKeys"></span></div>
+        <div class="meter">
+          <div class="fig"><b id="tOpen">0</b><span id="tDoors">of 0 doors open</span></div>
+          <div class="ticks" id="tTicks"></div>
+        </div>
+        <input class="search" id="q" type="search" placeholder="Search keys, doors or loot: LEDX, Dorm, Marked" autocomplete="off">
+        <div class="filters">
+          <button class="chip" id="fMap" aria-pressed="true">This map</button>
+          <button class="chip" id="fOwned" aria-pressed="false">Owned</button>
+          <button class="chip" id="fMissing" aria-pressed="false">Missing</button>
+          <select class="sort" id="sort" aria-label="Sort keys">
+            <option value="name">A–Z</option>
+            <option value="price">Price</option>
+          </select>
+        </div>
+      </div>
+      <div class="list" id="list" role="list"></div>
+      <div class="panel-foot g">
+        <div>Your ticks are saved in this browser only.</div>
+        <details>
+          <summary>Back up or move your keys</summary>
+          <div style="display:grid;gap:8px;margin-top:8px">
+            <textarea id="backup" aria-label="Backup code" placeholder="Paste a backup code here, then press Restore"></textarea>
+            <div class="btns">
+              <button class="btn" id="copyB">Copy backup code</button>
+              <button class="btn" id="restoreB">Restore</button>
+              <span id="bMsg"></span>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+    <div class="card" id="card" hidden></div>
+  </aside>
+</div>
+
+<script src="data.js"></script>
+<script src="icons.js"></script>
+<script>
+(() => {
+  const D = window.TK_DATA, ICONS = {};
+  // Turn the packed data: URIs into short blob: URLs once.
+  for (const [id, uri] of Object.entries(window.TK_ICONS || {})) {
+    try {
+      const bin = atob(uri.slice(uri.indexOf(',') + 1));
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      ICONS[id] = URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));
+    } catch { ICONS[id] = uri; }
+  }
+  delete window.TK_ICONS;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const keyById = Object.fromEntries(D.keys.map(k => [k.id, k]));
+  const mapById = Object.fromEntries(D.maps.map(m => [m.id, m]));
+  const mapName = id => mapById[id]?.name || D.extraMaps[id] || id;
+  const doorsByKey = {};
+  D.doors.forEach(d => (doorsByKey[d.key] ||= []).push(d));
+  const rub = n => n ? '₽' + Math.round(n).toLocaleString('en-US') : '';
+  const ticks = (on, total) => '<i class="on"></i>'.repeat(on) + '<i></i>'.repeat(Math.max(0, total - on));
+  const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+
+  // ---- grid references (12 cells along the long side of each map)
+  const GRID = 12;
+  const colName = i => String.fromCharCode(65 + i);
+  const gridOf = m => { const cell = Math.max(m.w, m.h) / GRID; return { cell, cols: Math.ceil(m.w / cell - 0.01), rows: Math.ceil(m.h / cell - 0.01) }; };
+  const gridRef = d => {
+    const m = mapById[d.map]; if (!m) return '';
+    const g = gridOf(m);
+    const c = Math.min(g.cols - 1, Math.max(0, Math.floor(d.x * m.w / g.cell)));
+    const r = Math.min(g.rows - 1, Math.max(0, Math.floor(d.y * m.h / g.cell)));
+    return colName(c) + (r + 1);
+  };
+
+  // ---- state
+  const STORE = 'tk-owned-v1';
+  let owned = new Set();
+  try { owned = new Set(JSON.parse(localStorage.getItem(STORE) || '[]')); } catch {}
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify([...owned])); } catch {} };
+  const st = { map: 'customs', sel: null, q: '', fMap: true, fOwned: false, fMissing: false, sort: 'name', showLocked: true, hover: null };
+  try { const v = JSON.parse(localStorage.getItem('tk-ui-v1') || '{}'); Object.assign(st, { fMap: v.fMap ?? true, sort: v.sort || 'name', showLocked: v.showLocked ?? true }); } catch {}
+  const saveUi = () => { try { localStorage.setItem('tk-ui-v1', JSON.stringify({ fMap: st.fMap, sort: st.sort, showLocked: st.showLocked })); } catch {} };
+  const fromHash = location.hash.slice(1);
+  if (mapById[fromHash]) st.map = fromHash;
+
+  $('built').textContent = 'Escape from Tarkov · data ' + D.built;
+
+  // ---- map index
+  function renderTabs() {
+    $('maps').innerHTML = D.maps.map(m => {
+      const open = D.doors.filter(d => d.map === m.id && owned.has(d.key)).length;
+      return `<button data-map="${m.id}" aria-pressed="${m.id === st.map}" aria-label="${esc(m.name)}, ${open} of ${m.doors} doors open">
+        <span class="mn">${esc(m.name)}</span><span class="n"><b>${open}</b>/${m.doors}</span>
+        <span class="ticks" aria-hidden="true">${ticks(open, m.doors)}</span></button>`;
+    }).join('');
+    const openAll = D.doors.filter(d => owned.has(d.key)).length;
+    $('allKeys').textContent = plural(owned.size, 'key');
+    $('allDoors').textContent = `Opens ${openAll} of ${D.doors.length} pinned doors`;
+  }
+  $('maps').addEventListener('click', e => {
+    const b = e.target.closest('button[data-map]'); if (!b) return;
+    setMap(b.dataset.map);
+  });
+  function setMap(id, keepView) {
+    if (!mapById[id]) return;
+    const changed = st.map !== id;
+    st.map = id;
+    if (location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
+    renderTabs(); renderList(); renderTally();
+    if (changed || !keepView) loadMap();
+  }
+  window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (mapById[h] && h !== st.map) setMap(h); });
+
+  // ---- tally
+  function renderTally() {
+    const onMap = D.keys.filter(k => k.maps.includes(st.map));
+    const own = onMap.filter(k => owned.has(k.id)).length;
+    const doors = D.doors.filter(d => d.map === st.map);
+    const open = doors.filter(d => owned.has(d.key)).length;
+    $('tMap').textContent = mapName(st.map);
+    $('tKeys').textContent = `${own}/${onMap.length} keys`;
+    $('tOpen').textContent = open;
+    $('tDoors').textContent = `of ${plural(doors.length, 'door')} open`;
+    $('tTicks').innerHTML = ticks(open, doors.length);
+  }
+
+  // ---- list
+  function matches(k, q) {
+    if (!q) return true;
+    return (k.name + ' ' + k.usage + ' ' + k.behindLock + ' ' + k.lockLocation).toLowerCase().includes(q);
+  }
+  function renderList() {
+    const q = st.q.trim().toLowerCase();
+    let ks = D.keys.filter(k => (!st.fMap || k.maps.includes(st.map)) && matches(k, q));
+    if (st.fOwned) ks = ks.filter(k => owned.has(k.id));
+    if (st.fMissing) ks = ks.filter(k => !owned.has(k.id));
+    if (st.sort === 'price') ks = ks.slice().sort((a, b) => b.price - a.price);
+    $('list').innerHTML = ks.length ? ks.map(k => {
+      const ds = doorsByKey[k.id] || [];
+      const here = ds.filter(d => d.map === st.map);
+      const sub = st.fMap
+        ? (here.length ? here.map(gridRef).join(' ') : 'No door pinned')
+        : (k.maps.length ? k.maps.map(mapName).join(', ') : 'No map listed');
+      const ic = ICONS[k.id] ? `<img class="slot" src="${ICONS[k.id]}" alt="" loading="lazy">` : '<span class="slot"></span>';
+      return `<div class="row g${owned.has(k.id) ? ' owned' : ''}${st.sel === k.id ? ' sel' : ''}" role="listitem" data-id="${k.id}">
+        <input class="tick" type="checkbox" id="own-${k.id}" aria-label="I have ${esc(k.name)}" ${owned.has(k.id) ? 'checked' : ''}>
+        ${ic}
+        <div class="nm"><div>${esc(k.name)}</div><small>${esc(sub)}</small></div>
+        <div class="price">${rub(k.price)}</div>
+      </div>`;
+    }).join('') : `<div class="empty">No keys match. ${st.fMap ? 'Try turning off “This map”.' : ''}</div>`;
+  }
+  $('list').addEventListener('click', e => {
+    const row = e.target.closest('.row'); if (!row) return;
+    const id = row.dataset.id;
+    if (e.target.matches('input[type=checkbox]')) { toggleOwned(id, e.target.checked); return; }
+    select(id, true);
+  });
+  $('q').addEventListener('input', e => { st.q = e.target.value; renderList(); });
+  const chip = (id, prop, other) => $(id).addEventListener('click', () => {
+    st[prop] = !st[prop];
+    if (other && st[prop]) { st[other] = false; $(other).setAttribute('aria-pressed', 'false'); }
+    $(id).setAttribute('aria-pressed', st[prop]); saveUi(); renderList();
+  });
+  chip('fMap', 'fMap'); chip('fOwned', 'fOwned', 'fMissing'); chip('fMissing', 'fMissing', 'fOwned');
+  $('sort').addEventListener('change', e => { st.sort = e.target.value; saveUi(); renderList(); });
+
+  function toggleOwned(id, on) {
+    on ? owned.add(id) : owned.delete(id);
+    save(); renderTabs(); renderTally(); renderFloors(); drawPins();
+    if (st.fOwned || st.fMissing) renderList();
+    else {
+      const row = $('list').querySelector(`.row[data-id="${id}"]`);
+      if (row) { row.classList.toggle('owned', on); row.querySelector('input').checked = on; }
+    }
+    if (st.sel === id) renderCard();
+  }
+
+  // ---- map view
+  const stage = $('stage'), wrap = $('mapWrap'), img = $('mapImg'), pinsEl = $('pins');
+  const view = { k: 1, tx: 0, ty: 0, k0: 1 };
+  let cur = null, loadSeq = 0, grid = { cell: 1, cols: 0, rows: 0 }, rxEls = [], ryEls = [];
+  // Maps arrive as scripts (maps/Name.js call TK_MAP), loaded the first time
+  // each map is opened and then kept in memory for the rest of the visit.
+  const svgCache = {}, mapWaiters = {};
+  window.TK_MAP = (name, txt) => { const w = mapWaiters[name]; delete mapWaiters[name]; if (w) w(txt); };
+  const loadSvg = name => svgCache[name] ||= new Promise((resolve, reject) => {
+    mapWaiters[name] = resolve;
+    const s = document.createElement('script');
+    s.src = 'maps/' + name.replace(/\.svg$/, '.js');
+    s.onerror = () => { delete svgCache[name]; delete mapWaiters[name]; s.remove(); reject(new Error('load failed')); };
+    document.body.appendChild(s);
+  });
+  function loadMap() {
+    cur = mapById[st.map];
+    st.floor = baseFloor().name;
+    wrap.setAttribute('aria-label', cur.name + ' map');
+    img.innerHTML = '';
+    wrap.style.width = cur.w + 'px'; wrap.style.height = cur.h + 'px';
+    const seq = ++loadSeq, m = cur;
+    loadSvg(m.svg)
+      .then(txt => { if (seq !== loadSeq) return; img.innerHTML = txt; addPatterns(); applyFloor(); })
+      .catch(() => { if (seq === loadSeq) img.innerHTML = '<div class="nomap">The map image did not load. Switch maps and back to try again.</div>'; });
+    buildGrid(); fit(); buildPins(); renderFloors();
+  }
+  // Water gets horizontal lines, trees a dot screen, danger zones a hatch: told apart by texture, not hue.
+  function addPatterns() {
+    const svg = img.querySelector('svg'); if (!svg) return;
+    const s = Math.max(cur.w, cur.h) / 240, ns = 'http://www.w3.org/2000/svg';
+    const defs = document.createElementNS(ns, 'defs');
+    defs.innerHTML =
+      `<pattern id="tk-water" patternUnits="userSpaceOnUse" width="${s}" height="${s}"><rect width="${s}" height="${s}" fill="#1c1c1c"/><rect y="${s * .4}" width="${s}" height="${s * .22}" fill="#4a4a4a"/></pattern>` +
+      `<pattern id="tk-trees" patternUnits="userSpaceOnUse" width="${s * 1.2}" height="${s * 1.2}"><rect width="${s * 1.2}" height="${s * 1.2}" fill="#2d2d2d"/><circle cx="${s * .6}" cy="${s * .6}" r="${s * .2}" fill="#444"/></pattern>` +
+      `<pattern id="tk-hatch" patternUnits="userSpaceOnUse" width="${s * 1.1}" height="${s * 1.1}" patternTransform="rotate(45)"><rect width="${s * .3}" height="${s * 1.1}" fill="#bdbdbd" fill-opacity=".5"/></pattern>`;
+    svg.prepend(defs);
+    const paint = (sel, id) => svg.querySelectorAll(sel).forEach(el => { el.style.fill = `url(#${id})`; });
+    paint('.water', 'tk-water'); paint('.trees', 'tk-trees'); paint('.danger, .danger_small', 'tk-hatch');
+  }
+  function buildGrid() {
+    grid = gridOf(cur);
+    let p = '';
+    for (let i = 1; i < grid.cols; i++) p += `M${i * grid.cell} 0V${cur.h}`;
+    for (let j = 1; j < grid.rows; j++) p += `M0 ${j * grid.cell}H${cur.w}`;
+    const g = $('gridSvg');
+    g.setAttribute('viewBox', `0 0 ${cur.w} ${cur.h}`);
+    g.innerHTML = `<path d="${p}" fill="none" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    $('rx').innerHTML = Array.from({ length: grid.cols }, (_, i) => `<span>${colName(i)}</span>`).join('');
+    $('ry').innerHTML = Array.from({ length: grid.rows }, (_, i) => `<span>${i + 1}</span>`).join('');
+    rxEls = [...$('rx').children]; ryEls = [...$('ry').children];
+  }
+
+  // ---- floors
+  const baseFloor = () => cur.floors.find(f => f.base);
+  const floorOf = d => (d.floor && cur.floors.some(f => f.name === d.floor)) ? d.floor : baseFloor().name;
+  function renderFloors() {
+    const el = $('floors');
+    if (cur.floors.length < 2) { el.hidden = true; return; }
+    el.hidden = false;
+    const ds = D.doors.filter(d => d.map === st.map);
+    el.innerHTML = cur.floors.map(f => {
+      const on = ds.filter(d => floorOf(d) === f.name);
+      const open = on.filter(d => owned.has(d.key)).length;
+      return `<button data-floor="${esc(f.name)}" aria-pressed="${f.name === st.floor}">${esc(f.name)}<span class="n">${on.length ? `${open}/${on.length}` : '–'}</span></button>`;
+    }).join('') + '<span class="cap lab">Level</span>';
+  }
+  $('floors').addEventListener('click', e => { const b = e.target.closest('button[data-floor]'); if (b) setFloor(b.dataset.floor); });
+  function setFloor(name) {
+    if (!cur.floors.some(f => f.name === name)) return;
+    st.floor = name; applyFloor(); renderFloors(); drawPins();
+  }
+  function applyFloor() {
+    const svg = img.querySelector('svg'); if (!svg) return;
+    const sel = cur.floors.find(f => f.name === st.floor) || baseFloor();
+    const base = baseFloor();
+    for (const f of cur.floors) {
+      if (!f.svg || f.base) continue;
+      const g = svg.querySelector('#' + f.svg);
+      if (g) g.classList.toggle('gone', f !== sel);
+    }
+    const bg = base.svg && svg.querySelector('#' + base.svg);
+    if (bg) {
+      const other = sel !== base;
+      bg.classList.toggle('gone', other && cur.exclusive);
+      bg.classList.toggle('faded', other && !cur.exclusive && !!sel.svg);
+    }
+  }
+  let sr = stage.getBoundingClientRect();
+  const RULER = 24;
+  function fit() {
+    const r = sr, w = r.width - RULER, h = r.height - RULER;
+    view.k0 = Math.min(w / cur.w, h / cur.h) * 0.94;
+    view.k = view.k0;
+    view.tx = RULER + (w - cur.w * view.k) / 2;
+    view.ty = RULER + (h - cur.h * view.k) / 2;
+    apply();
+  }
+  // View changes are batched into one write per frame; while moving the map is held as a composited bitmap.
+  let raf = 0, idle = 0;
+  function apply() {
+    if (!raf) raf = requestAnimationFrame(render);
+    if (!stage.classList.contains('moving')) stage.classList.add('moving');
+    clearTimeout(idle);
+    idle = setTimeout(() => stage.classList.remove('moving'), 160);
+  }
+  function render() {
+    raf = 0;
+    wrap.style.transform = `translate(${view.tx}px, ${view.ty}px) scale(${view.k})`;
+    placePins(); placeRulers();
+  }
+  function placeRulers() {
+    const c = grid.cell * view.k;
+    rxEls.forEach((el, i) => { el.style.transform = `translateX(${view.tx + (i + .5) * c}px)`; });
+    ryEls.forEach((el, i) => { el.style.transform = `translateY(${view.ty - RULER + (i + .5) * c}px)`; });
+  }
+  function zoomAt(f, cx, cy) {
+    const k = Math.max(view.k0 * 0.7, Math.min(view.k0 * 14, view.k * f));
+    f = k / view.k;
+    view.tx = cx - (cx - view.tx) * f;
+    view.ty = cy - (cy - view.ty) * f;
+    view.k = k; apply();
+  }
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let anim = 0;
+  function zoomAnimated(f, cx, cy) {
+    cancelAnimationFrame(anim);
+    if (reduceMotion) return zoomAt(f, cx, cy);
+    const t0 = performance.now(), dur = 180;
+    let done = 0;
+    const step = now => {
+      const t = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - t, 3);
+      const target = Math.log(f) * e;
+      zoomAt(Math.exp(target - done), cx, cy); done = target;
+      if (t < 1) anim = requestAnimationFrame(step);
+    };
+    anim = requestAnimationFrame(step);
+  }
+  function centerOn(pts) {
+    if (!pts.length) return;
+    const r = sr;
+    const xs = pts.map(d => d.x * cur.w), ys = pts.map(d => d.y * cur.h);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    const span = Math.max((maxX - minX) / r.width, (maxY - minY) / r.height);
+    view.k = Math.min(view.k0 * 4, Math.max(view.k0 * 2.5, span ? 0.6 / span : view.k0 * 3));
+    if (span) view.k = Math.min(view.k, 0.6 / span);
+    view.k = Math.max(view.k, view.k0);
+    view.tx = RULER + (r.width - RULER) / 2 - ((minX + maxX) / 2) * view.k;
+    view.ty = RULER + (r.height - RULER) / 2 - ((minY + maxY) / 2) * view.k;
+    apply();
+  }
+
+  let pinEls = [];
+  function buildPins() {
+    const ds = D.doors.filter(d => d.map === st.map);
+    pinsEl.innerHTML = ds.map((d, i) => `<button class="pin" data-i="${i}" aria-label="${esc(keyById[d.key]?.name || 'Locked door')}, grid ${gridRef(d)}"></button>`).join('') + '<div class="tip" id="tip" hidden></div>';
+    pinEls = [...pinsEl.querySelectorAll('.pin')].map((el, i) => ({ el, d: ds[i] }));
+    drawPins();
+  }
+  function drawPins() {
+    for (const { el, d } of pinEls) {
+      const isOpen = owned.has(d.key), isSel = st.sel === d.key;
+      const off = floorOf(d) !== st.floor;
+      el.classList.toggle('open', isOpen);
+      el.classList.toggle('hl', isSel && !off);
+      el.classList.toggle('off', off);
+      el.style.zIndex = off ? 0 : isOpen ? 2 : 1;
+      el.classList.toggle('dim', !!st.sel && !isSel);
+      el.hidden = !isOpen && !isSel && !st.showLocked;
+    }
+    placePins();
+  }
+  function placePins() {
+    for (const { el, d } of pinEls) {
+      el.style.transform = `translate(${view.tx + d.x * cur.w * view.k}px, ${view.ty + d.y * cur.h * view.k}px)`;
+    }
+    if (st.hover) showTip(st.hover);
+  }
+  function showTip(p) {
+    const tip = $('tip'); if (!tip) return;
+    const k = keyById[p.d.key];
+    tip.hidden = false;
+    tip.textContent = gridRef(p.d) + '  ' + (k?.name || 'Locked door') + (cur.floors.length > 1 ? ' · ' + floorOf(p.d) : '') + (owned.has(p.d.key) ? ' · you have it' : '');
+    tip.style.left = view.tx + p.d.x * cur.w * view.k + 'px';
+    tip.style.top = view.ty + p.d.y * cur.h * view.k + 'px';
+  }
+  pinsEl.addEventListener('pointerover', e => { const el = e.target.closest('.pin'); if (!el) return; st.hover = pinEls[+el.dataset.i]; showTip(st.hover); });
+  pinsEl.addEventListener('pointerout', e => { if (e.target.closest('.pin')) { st.hover = null; const t = $('tip'); if (t) t.hidden = true; } });
+  pinsEl.addEventListener('click', e => {
+    const el = e.target.closest('.pin'); if (!el) return;
+    const d = pinEls[+el.dataset.i].d;
+    if (floorOf(d) !== st.floor) setFloor(floorOf(d));
+    select(d.key, false);
+  });
+  $('showLocked').checked = st.showLocked;
+  $('showLocked').addEventListener('change', e => { st.showLocked = e.target.checked; saveUi(); drawPins(); });
+
+  // pan / pinch / wheel
+  const ptrs = new Map();
+  stage.addEventListener('pointerdown', e => {
+    if (e.target.closest('.pin, .zoom, .legend, .credit, .floors')) return;
+    stage.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    stage.classList.add('drag');
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!ptrs.has(e.pointerId)) return;
+    const prev = ptrs.get(e.pointerId);
+    const r = sr;
+    if (ptrs.size === 1) {
+      view.tx += e.clientX - prev.x; view.ty += e.clientY - prev.y;
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); apply();
+    } else if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const dist0 = Math.hypot(a.x - b.x, a.y - b.y);
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const [c, d] = [...ptrs.values()];
+      const dist1 = Math.hypot(c.x - d.x, c.y - d.y);
+      if (dist0 > 0) zoomAt(dist1 / dist0, (c.x + d.x) / 2 - r.left, (c.y + d.y) / 2 - r.top);
+    }
+  });
+  const end = e => { ptrs.delete(e.pointerId); if (!ptrs.size) stage.classList.remove('drag'); };
+  stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
+  stage.addEventListener('wheel', e => {
+    e.preventDefault();
+    cancelAnimationFrame(anim);
+    const r = sr;
+    let dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? r.height : 1);
+    dy = Math.max(-150, Math.min(150, dy));
+    const rate = e.ctrlKey ? 0.01 : 0.0024;
+    zoomAt(Math.exp(-dy * rate), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  const mid = () => [RULER + (sr.width - RULER) / 2, RULER + (sr.height - RULER) / 2];
+  $('zIn').onclick = () => zoomAnimated(1.6, ...mid());
+  $('zOut').onclick = () => zoomAnimated(1 / 1.6, ...mid());
+  $('zFit').onclick = () => fit();
+  let rz; new ResizeObserver(() => { sr = stage.getBoundingClientRect(); clearTimeout(rz); rz = setTimeout(() => cur && fit(), 80); }).observe(stage);
+  window.addEventListener('scroll', () => { sr = stage.getBoundingClientRect(); }, { passive: true });
+  const narrow = () => window.innerWidth <= 760;
+
+  // ---- selection + dossier
+  function select(id, fromList) {
+    st.sel = id;
+    const ds = doorsByKey[id] || [];
+    const here = ds.filter(d => d.map === st.map);
+    if (fromList && !here.length && ds.length) setMap(ds[0].map, true);
+    const onMap = (doorsByKey[id] || []).filter(d => d.map === st.map);
+    if (fromList && onMap.length && !onMap.some(d => floorOf(d) === st.floor)) setFloor(floorOf(onMap[0]));
+    renderCard(); renderList(); drawPins();
+    if (onMap.length) centerOn(onMap);
+    if (narrow()) $('panel').scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+  function rich(t) {
+    if (!t) return '';
+    let html = '', inList = false;
+    for (const raw of t.split('\n')) {
+      const line = raw.trim(); if (!line) continue;
+      const h = line.match(/^=+\s*(.+?)\s*=+$/);
+      if (/^\*/.test(line)) { if (!inList) { html += '<ul>'; inList = true; } html += '<li>' + esc(line.replace(/^\*+\s*/, '')) + '</li>'; continue; }
+      if (inList) { html += '</ul>'; inList = false; }
+      html += h ? '<h4>' + esc(h[1]) + '</h4>' : '<p>' + esc(line) + '</p>';
+    }
+    return html + (inList ? '</ul>' : '');
+  }
+  function closeCard() { st.sel = null; $('card').hidden = true; $('ring').hidden = false; renderList(); drawPins(); }
+  function renderCard() {
+    const card = $('card');
+    const k = keyById[st.sel];
+    if (!k) { card.hidden = true; $('ring').hidden = false; return; }
+    const ds = doorsByKey[k.id] || [];
+    const ic = ICONS[k.id] ? `<img class="slot" src="${ICONS[k.id]}" alt="">` : '<span class="slot"></span>';
+    const meta = [...k.maps.map(mapName), k.price ? rub(k.price) + ' flea avg' : '', ds.length ? plural(ds.length, 'door') : ''].filter(Boolean);
+    const floorLabel = d => { const m = mapById[d.map]; const ok = d.floor && m.floors.some(f => f.name === d.floor); return m.floors.length > 1 ? (ok ? d.floor : m.floors.find(f => f.base).name) : ''; };
+    const doorBtns = ds.map((d, i) => `<button data-door="${i}"><span class="ref">${gridRef(d)}</span><span>${esc(mapName(d.map))}${floorLabel(d) ? ' · ' + esc(floorLabel(d)) : ''}${d.power ? ' · needs power' : ''}</span><span class="go">Show</span></button>`).join('');
+    const has = owned.has(k.id);
+    card.innerHTML = `
+      <button class="back g" id="closeCard"><span aria-hidden="true">←</span> All keys</button>
+      <div class="dhead g">${ic}
+        <div><h2>${esc(k.name)}</h2><div class="meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</div></div>
+      </div>
+      <label class="own g${has ? ' on' : ''}"><input class="tick" type="checkbox" id="cardOwn" ${has ? 'checked' : ''}> I have this key<span class="st">${has ? 'On your ring' : 'Not on your ring'}</span></label>
+      <div class="sec loot g"><h3 class="lab">Behind the door</h3>${rich(k.behindLock) || '<p class="none">The wiki has no loot listed for this key yet.</p>'}</div>
+      ${k.lockLocation || k.usage || ds.length ? `<div class="sec g"><h3 class="lab">Where the door is</h3>${rich(k.lockLocation) || (k.usage ? '<p>' + esc(k.usage) + '</p>' : '')}${ds.length ? `<div class="doors">${doorBtns}</div>` : ''}</div>` : ''}
+      ${k.keyLocation ? `<div class="sec g"><h3 class="lab">Where to find the key</h3>${rich(k.keyLocation)}</div>` : ''}
+      ${k.quests ? `<div class="sec g"><h3 class="lab">Quests</h3>${rich(k.quests)}</div>` : ''}
+      <div class="sec links g">
+        ${k.wiki ? `<a href="${esc(k.wiki)}" target="_blank" rel="noopener">Wiki page</a>` : ''}
+        ${k.link ? `<a href="${esc(k.link)}" target="_blank" rel="noopener">Prices on tarkov.dev</a>` : ''}
+      </div>`;
+    $('ring').hidden = true;
+    card.hidden = false;
+    card.scrollTop = 0;
+    $('closeCard').onclick = closeCard;
+    $('cardOwn').onchange = e => toggleOwned(k.id, e.target.checked);
+    card.querySelectorAll('[data-door]').forEach(b => b.onclick = () => {
+      const d = ds[+b.dataset.door];
+      if (d.map !== st.map) setMap(d.map, true);
+      setFloor(floorOf(d));
+      centerOn([d]);
+      if (narrow()) stage.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+    });
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && st.sel) closeCard(); });
+
+  // ---- backup
+  $('copyB').onclick = () => {
+    const code = btoa(JSON.stringify([...owned]));
+    $('backup').value = code;
+    const fallback = () => { $('backup').select(); $('bMsg').textContent = 'Select and copy the code above'; };
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(code).then(() => ($('bMsg').textContent = 'Copied'), fallback);
+    else fallback();
+  };
+  $('restoreB').onclick = () => {
+    try {
+      const ids = JSON.parse(atob($('backup').value.trim()));
+      const valid = ids.filter(id => keyById[id]);
+      owned = new Set(valid); save();
+      renderTabs(); renderTally(); renderList(); renderFloors(); drawPins(); renderCard();
+      $('bMsg').textContent = `Restored ${plural(valid.length, 'key')}`;
+    } catch { $('bMsg').textContent = 'That code is not valid. Copy it again from the other browser.'; }
+  };
+
+  // ---- go
+  $('fMap').setAttribute('aria-pressed', st.fMap); $('sort').value = st.sort;
+  history.replaceState(null, '', '#' + st.map);
+  renderTabs(); renderTally(); renderList(); loadMap();
+})();
+</script>
+</body>
+</html>
