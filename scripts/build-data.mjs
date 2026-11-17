@@ -26,9 +26,18 @@ if (missing || (process.argv.includes('--refresh') && (await Promise.all(API_FIL
   console.log(`using cached API data from ${fmtAge(apiAge)}`);
 }
 
+// English text for the item lookup keys ("<id> Name", "<id> ShortName"), the same
+// file tarkov.dev's site reads (<path>_en). Its own 24-hour rule, like the rest.
+const EN_FILE = p('data/api-items-en.json');
+if ((await ageMs(EN_FILE)) === Infinity || (process.argv.includes('--refresh') && await due(EN_FILE))) {
+  console.log('downloading English item names from json.tarkov.dev');
+  await downloadJson('https://json.tarkov.dev/regular/items_en', EN_FILE);
+}
+
 const read = async f => JSON.parse(await readFile(p(f), 'utf8'));
 const apiMaps = Object.values((await read('data/api-maps.json')).data.maps);
 const items = (await read('data/api-items.json')).data.items;
+const EN = (await read('data/api-items-en.json')).data || {};
 const wiki = await read('data/wiki-keys.json');
 const config = await read('data/maps-config.json');
 
@@ -232,7 +241,9 @@ for (const it of Object.values(items)) {
   const tidy = t => (t || '').split('\n').filter(l => !/^(Category|[a-z]{2,3}(-[a-z]+)?):\S/.test(l.trim())).join('\n').trim();
   keys.push({
     id: it.id,
-    name: w?.title || titleCase(it.normalizedName),
+    name: w?.title || EN[it.id + ' Name'] || titleCase(it.normalizedName),
+    // the short name the game prints on the item in your stash
+    short: EN[it.id + ' ShortName'] || '',
     wiki: w?.wiki || it.wikiLink || '',
     link: it.link,
     price: it.avg24hPrice || it.lastLowPrice || 0,
@@ -382,6 +393,54 @@ for (const k of keys) {
 await writeFile(MISSES, JSON.stringify(misses, null, 1));
 console.log(`icons: ${got} cached, ${fetched} downloaded now, ${Object.keys(misses).length} unavailable${skipped ? ` (${skipped} not retried until 24h pass)` : ''}`);
 for (const k of keys) k.icon = await validWebp(p(`data/icons/${k.id}.webp`));
+
+// Key ledger: lets someone (or another AI) turn a screenshot of their keys into
+// an import code for the site. Publishes each key's icon, writes assets/keys.json
+// (machine-readable) and ledger.md (readable, with icon links). ledger.html shows
+// the same list on the site.
+const SITE = 'https://mrbreachie.github.io/key-cache/';
+const EX = keys.slice(0, 2).map(k => k.id); // real ids for the examples
+await mkdir(p('assets/icons/'), { recursive: true });
+for (const k of keys) if (k.icon) await writeFile(p(`assets/icons/${k.id}.webp`), await readFile(p(`data/icons/${k.id}.webp`)));
+const mapLabel = id => MAPS.find(m => m.id === id)?.name || NO_SVG[id] || id;
+const shortCount = {};
+keys.forEach(k => { const s = k.short.toLowerCase(); shortCount[s] = (shortCount[s] || 0) + 1; });
+const nameCount = {};
+keys.forEach(k => { const s = k.name.toLowerCase(); nameCount[s] = (nameCount[s] || 0) + 1; });
+const ledger = keys.map(k => ({
+  id: k.id, name: k.name, short: k.short,
+  maps: k.maps.map(mapLabel),
+  icon: k.icon ? `${SITE}assets/icons/${k.id}.webp` : '',
+  ...(shortCount[k.short.toLowerCase()] > 1 || nameCount[k.name.toLowerCase()] > 1 ? { sharedName: true } : {}),
+}));
+await writeFile(p('assets/keys.json'), JSON.stringify({
+  built: new Date().toISOString().slice(0, 10),
+  importCode: `base64 of a JSON array of key ids, e.g. btoa(JSON.stringify(["${EX[0]}"])). Paste it under Menu > Back up or move your keys, then press Add to my keys (or Restore to replace).`,
+  keys: ledger,
+}, null, 1) + '\n');
+const md = [
+  '# Key Cache key ledger',
+  '',
+  `Every Escape from Tarkov key and keycard Key Cache knows (${keys.length}), so a screenshot of your keys can be turned into an import code for ${SITE}`,
+  '',
+  '## How to make an import code',
+  '',
+  '1. Match each key in the screenshot to a row below. In the stash, the game prints the **short name** on the item; compare the **icon** too, especially for rows marked *shared name*.',
+  '2. Collect the matching **ids** into a JSON array, for example `' + JSON.stringify(EX) + '`.',
+  '3. Encode the array as base64. JavaScript: `btoa(JSON.stringify(ids))`. Python: `base64.b64encode(json.dumps(ids).encode()).decode()`.',
+  '4. On the site open **Menu > Back up or move your keys**, paste the code and press **Add to my keys** (keeps keys already ticked) or **Restore** (replaces them).',
+  '',
+  'The import box also accepts a plain list of ids, or of exact key names or short names, one per line or separated by commas. Ids are the safest: some short names are shared.',
+  '',
+  'Machine-readable version: [assets/keys.json](assets/keys.json). Page version with icons: ' + SITE + 'ledger.html',
+  '',
+  '| Icon | Short name (in stash) | Key | Maps | Id |',
+  '|---|---|---|---|---|',
+  ...ledger.map(k => `| ${k.icon ? `<img src="assets/icons/${k.id}.webp" width="48" height="48" alt="">` : ''} | ${k.short.replace(/\|/g, '\\|')}${k.sharedName ? ' *(shared name)*' : ''} | ${k.name.replace(/\|/g, '\\|')} | ${k.maps.join(', ') || '–'} | \`${k.id}\` |`),
+  '',
+].join('\n');
+await writeFile(p('ledger.md'), md);
+console.log(`ledger: ${ledger.length} keys, ${ledger.filter(k => k.sharedName).length} with a shared name`);
 
 const out = {
   built: new Date().toISOString().slice(0, 10),

@@ -21,6 +21,7 @@ A sharper version is in [media/key-cache-demo.mp4](media/key-cache-demo.mp4).
 - **Grid references:** rulers around the map give every door a reference such as `F6`, which also shows in the key list.
 - **Key details:** what's behind the door, where the door is, where to find the key, quests that use it, and the average flea price.
 - **Search** across key names, door locations and loot, for example "LEDX".
+- **Key ledger:** [ledger.html](https://mrbreachie.github.io/key-cache/ledger.html) lists every key's icon, the short name the game prints on it in your stash, and its id, with the import code explained. Give it (or [ledger.md](ledger.md) / [assets/keys.json](assets/keys.json)) to an AI with a screenshot of your keys and it can write you an import code. The import box also takes plain lists of ids or key names, and can add to your keys instead of replacing them.
 - **Saved in your browser:** your ticks are kept in this browser only. Use "Back up or move your keys" to copy them to another browser or device.
 
 The map images keep tarkov.dev's colours. Everything else is greyscale: door and key states are shown by brightness and shape, never by colour alone.

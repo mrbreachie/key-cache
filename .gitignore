@@ -5,6 +5,7 @@ CLAUDE.md
 # and otherwise at most once every 24 hours.
 data/api-maps.json
 data/api-items.json
+data/api-items-en.json
 data/icon-misses.json
 *.tmp
 

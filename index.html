@@ -553,6 +553,7 @@ select.sort { margin-left: auto; }
     <div class="navlinks">
       <a href="#customs" data-tab="map" id="navMap"><svg class="i" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2.5 4.5 6.5 3l5 1.5 4-1.5v10.5l-4 1.5-5-1.5-4 1.5z M6.5 3v10.5M11.5 4.5V15"/></svg><b>Map</b><small>See which locked doors you can open</small></a>
       <a href="#inventory" data-tab="inv"><svg class="i" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="2.5" width="5" height="5" rx="1.2"/><rect x="10.5" y="2.5" width="5" height="5" rx="1.2"/><rect x="2.5" y="10.5" width="5" height="5" rx="1.2"/><rect x="10.5" y="10.5" width="5" height="5" rx="1.2"/></svg><b>Key inventory</b><small>Every key, its loot and where to find it</small></a>
+      <a href="ledger.html"><svg class="i" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 2.5h8.5l2 2V15.5H4z M7 7h5M7 10h5M7 13h3"/></svg><b>Key ledger</b><small>Icons, stash names and ids for importing keys</small></a>
     </div>
   </div>
   <div class="nav-sec">
@@ -562,10 +563,12 @@ select.sort { margin-left: auto; }
   <div class="nav-sec">
     <span class="lab">Back up or move your keys</span>
     <p>Your ticks are saved in this browser only. Copy the code to keep it safe or to move your keys to another browser or device.</p>
-    <textarea id="backup" aria-label="Backup code" placeholder="Paste a backup code here, then press Restore"></textarea>
+    <p>Importing from a screenshot? The <a href="ledger.html">key ledger</a> lists every key's icon, stash name and id, and explains the code.</p>
+    <textarea id="backup" aria-label="Backup code or list of keys" placeholder="Paste a backup code, or key ids or names (one per line)"></textarea>
     <div class="btns">
       <button class="btn" id="copyB">Copy backup code</button>
-      <button class="btn" id="restoreB">Restore</button>
+      <button class="btn" id="addB">Add to my keys</button>
+      <button class="btn" id="restoreB" title="Replace your ticked keys with these">Restore</button>
       <span id="bMsg" role="status"></span>
     </div>
   </div>
@@ -1458,7 +1461,7 @@ select.sort { margin-left: auto; }
     if (st.panel && narrow()) setPanel(false);
   });
 
-  // ---- backup
+  // ---- backup and import
   $('copyB').onclick = () => {
     const code = btoa(JSON.stringify([...owned]));
     $('backup').value = code;
@@ -1466,16 +1469,44 @@ select.sort { margin-left: auto; }
     if (navigator.clipboard?.writeText) navigator.clipboard.writeText(code).then(() => ($('bMsg').textContent = 'Copied'), fallback);
     else fallback();
   };
-  $('restoreB').onclick = () => {
-    try {
-      const ids = JSON.parse(atob($('backup').value.trim()));
-      const valid = ids.filter(id => keyById[id]);
-      owned = new Set(valid); save();
-      renderTabs(); renderTally(); renderList(); renderFloors(); drawPins(); renderCard();
-      if (st.view === 'inv') renderInv();
-      $('bMsg').textContent = `Restored ${plural(valid.length, 'key')}`;
-    } catch { $('bMsg').textContent = 'That code is not valid. Copy it again from the other browser.'; }
-  };
+  // The box accepts a backup code (base64 of a JSON array of key ids, as made by
+  // "Copy backup code" or from the key ledger), a JSON array, or key ids, key names
+  // or stash short names separated by new lines, commas or semicolons.
+  const byName = {};
+  D.keys.forEach(k => { for (const n of new Set([k.name, k.short])) if (n) (byName[n.toLowerCase()] ||= new Set()).add(k.id); });
+  function parseImport(text) {
+    text = text.trim();
+    let list = null;
+    try { const j = JSON.parse(atob(text)); if (Array.isArray(j)) list = j; } catch {}
+    if (!list) try { const j = JSON.parse(text); if (Array.isArray(j)) list = j; } catch {}
+    if (!list) list = text.split(/[\n,;]+/);
+    const ids = new Set(), bad = [], unsure = [];
+    for (const raw of list) {
+      const s = String(raw).trim().replace(/^["'`]+|["'`]+$/g, '').trim();
+      if (!s) continue;
+      if (keyById[s]) { ids.add(s); continue; }
+      const m = byName[s.toLowerCase()];
+      if (m && m.size === 1) ids.add([...m][0]);
+      else (m ? unsure : bad).push(s);
+    }
+    return { ids: [...ids], bad, unsure };
+  }
+  function importKeys(replace) {
+    const { ids, bad, unsure } = parseImport($('backup').value);
+    if (!ids.length && !bad.length && !unsure.length) { $('bMsg').textContent = 'Paste a backup code or a list of keys first.'; return; }
+    if (!ids.length) { $('bMsg').textContent = 'No keys recognised. Check the code, or use key ids from the key ledger.'; return; }
+    const before = owned.size;
+    owned = replace ? new Set(ids) : new Set([...owned, ...ids]);
+    save();
+    renderTabs(); renderTally(); renderList(); renderFloors(); drawPins(); renderCard();
+    if (st.view === 'inv') renderInv();
+    let msg = replace ? `Restored ${plural(ids.length, 'key')}.` : `Added ${plural(owned.size - before, 'key')} (${ids.length} recognised).`;
+    if (unsure.length) msg += ` Shared names, use the id instead: ${unsure.join(', ')}.`;
+    if (bad.length) msg += ` Not recognised: ${bad.slice(0, 8).join(', ')}${bad.length > 8 ? ` and ${bad.length - 8} more` : ''}.`;
+    $('bMsg').textContent = msg;
+  }
+  $('restoreB').onclick = () => importKeys(true);
+  $('addB').onclick = () => importKeys(false);
 
   // ---- go
   $('fMap').setAttribute('aria-pressed', st.fMap); $('sort').value = st.sort;
