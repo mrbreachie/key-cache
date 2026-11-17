@@ -176,7 +176,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #9a9a9e; transition: transform .18s var(--ease), background .15s; }
 .sw:checked { background: var(--hi); }
 .sw:checked::after { transform: translateX(12px); background: var(--hi-ink); }
-footer.credit { position: absolute; right: 14px; bottom: 14px; z-index: 4; max-width: 40%; text-align: right; font-size: 11px; line-height: 1.45; color: var(--faint); text-shadow: 0 0 4px #000, 0 0 2px #000; }
+footer.credit { position: absolute; right: 14px; bottom: 14px; z-index: 4; max-width: min(40%, calc(100% - 470px)); text-align: right; font-size: 11px; line-height: 1.45; color: var(--faint); text-shadow: 0 0 4px #000, 0 0 2px #000; }
 footer.credit a { color: var(--muted); }
 .nomap { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); padding: 24px; text-align: center; }
 

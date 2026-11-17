@@ -1,5 +1,5 @@
-// Joins tarkov.dev map/item data with the wiki key pages into site/data.js,
-// and downloads key icons and map SVGs into site/.
+// Joins tarkov.dev map/item data with the wiki key pages into docs/data.js,
+// and downloads key icons and map SVGs into docs/.
 // Usage: node scripts/build-data.mjs [--refresh] [--force]
 //   --refresh  re-download maps and items from json.tarkov.dev, but only if
 //              the cached copies are more than 24 hours old
@@ -195,8 +195,9 @@ function scopeSvg(svg) {
 }
 
 // Assets
-await mkdir(p('site/maps/'), { recursive: true });
-await mkdir(p('site/icons/'), { recursive: true });
+await mkdir(p('docs/maps/'), { recursive: true });
+await mkdir(p('data/icons/'), { recursive: true });
+await mkdir(p('data/preview/'), { recursive: true });
 for (const m of MAPS) {
   const svg = await readFile(p(`data/svg/${m.svg}`), 'utf8');
   const vb = svg.slice(0, 2000).match(/viewBox="([^"]+)"/)[1].split(/[\s,]+/).map(Number);
@@ -205,14 +206,14 @@ for (const m of MAPS) {
   m.floors = floorsFor(m.id, svg);
   m.exclusive = !!LEVEL_SWAP[m.id];
   const scoped = scopeSvg(svg);
-  await writeFile(p(`site/maps/${m.svg}`), scoped);
+  await writeFile(p(`data/preview/${m.svg}`), scoped);
   // The page loads maps as <script> files (maps/Name.js), the same way it loads
   // data.js: fetch() of the .svg didn't work on the hosted page.
-  await writeFile(p(`site/maps/${m.svg.replace(/\.svg$/, '.js')}`),
+  await writeFile(p(`docs/maps/${m.svg.replace(/\.svg$/, '.js')}`),
     `window.TK_MAP && window.TK_MAP(${JSON.stringify(m.svg)}, ${JSON.stringify(scoped)});\n`);
   delete m.also;
 }
-// Icons: downloaded once and kept in site/icons/. A cached icon is only
+// Icons: downloaded once and kept in data/icons/. A cached icon is only
 // fetched again if the file is damaged (not a valid WebP). An icon that
 // failed is noted in data/icon-misses.json and not retried for 24h.
 const MISSES = p('data/icon-misses.json');
@@ -220,7 +221,7 @@ let misses = {};
 try { misses = JSON.parse(await readFile(MISSES, 'utf8')); } catch {}
 let got = 0, fetched = 0, skipped = 0;
 for (const k of keys) {
-  const dest = p(`site/icons/${k.id}.webp`);
+  const dest = p(`data/icons/${k.id}.webp`);
   if (await validWebp(dest)) { got++; delete misses[k.id]; continue; }
   if (!force && misses[k.id] && Date.now() - misses[k.id] < DAY) { skipped++; continue; }
   try {
@@ -232,7 +233,7 @@ for (const k of keys) {
 }
 await writeFile(MISSES, JSON.stringify(misses, null, 1));
 console.log(`icons: ${got} cached, ${fetched} downloaded now, ${Object.keys(misses).length} unavailable${skipped ? ` (${skipped} not retried until 24h pass)` : ''}`);
-for (const k of keys) k.icon = await validWebp(p(`site/icons/${k.id}.webp`));
+for (const k of keys) k.icon = await validWebp(p(`data/icons/${k.id}.webp`));
 
 const out = {
   built: new Date().toISOString().slice(0, 10),
@@ -241,7 +242,7 @@ const out = {
   keys,
   doors: doors.filter(d => !d.nopin),
 };
-await writeFile(p('site/data.js'), 'window.TK_DATA = ' + JSON.stringify(out) + ';\n');
+await writeFile(p('docs/data.js'), 'window.TK_DATA = ' + JSON.stringify(out) + ';\n');
 const pinned = out.doors.length;
 const noWiki = keys.filter(k => !k.behindLock && k.maps.length).map(k => k.name);
 console.log(`${keys.length} keys, ${pinned} doors pinned, ${got} icons`);
@@ -252,7 +253,7 @@ console.log(`keys on a map with no loot text (${noWiki.length}):`, noWiki.join('
 const icons = {};
 for (const k of keys) {
   if (!k.icon) continue;
-  icons[k.id] = 'data:image/webp;base64,' + (await readFile(p(`site/icons/${k.id}.webp`))).toString('base64');
+  icons[k.id] = 'data:image/webp;base64,' + (await readFile(p(`data/icons/${k.id}.webp`))).toString('base64');
 }
-await writeFile(p('site/icons.js'), 'window.TK_ICONS = ' + JSON.stringify(icons) + ';\n');
+await writeFile(p('docs/icons.js'), 'window.TK_ICONS = ' + JSON.stringify(icons) + ';\n');
 console.log(`icons.js: ${Object.keys(icons).length} icons`);

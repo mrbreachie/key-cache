@@ -9,8 +9,8 @@ data/icon-misses.json
 *.tmp
 
 # Generated copies of the map SVGs, used only for local checks.
-# The page loads site/maps/*.js.
-site/maps/*.svg
+# The page loads docs/maps/*.js.
+data/preview/
 
 node_modules/
 .DS_Store
