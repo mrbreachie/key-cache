@@ -2,7 +2,7 @@
 
 A free fan tool for Escape from Tarkov. Tick the keys you own, and the map shows every locked door you can open, what loot is behind it and where to find each key.
 
-**Open it:** https://USERNAME.github.io/key-cache/
+**Open it:** https://mrbreachie.github.io/key-cache/
 
 ![Demo: searching for dorm keys, ticking them, opening the Dorm room 314 key and switching to Reserve's bunkers](media/key-ring-demo.gif)
 
