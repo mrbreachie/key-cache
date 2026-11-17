@@ -440,6 +440,16 @@ const md = [
   '',
 ].join('\n');
 await writeFile(p('ledger.md'), md);
+// keys.txt: the small plain-text version to paste into any AI along with a screenshot.
+await writeFile(p('keys.txt'), [
+  `Key Cache key list (${keys.length} keys, ${new Date().toISOString().slice(0, 10)}). One key per line: id | full name | short name shown on the item in the stash.`,
+  'To import: match the keys in a screenshot to these lines, put their ids in a JSON array and base64-encode it, e.g. btoa(JSON.stringify(["' + EX[0] + '"])).',
+  `Paste the result (or just the ids, one per line) under Menu > Back up or move your keys on ${SITE} and press "Add to my keys".`,
+  'Short names marked * are used by more than one key: tell those apart by the full name or icon.',
+  '',
+  ...keys.map(k => `${k.id} | ${k.name} | ${k.short}${shortCount[k.short.toLowerCase()] > 1 || nameCount[k.name.toLowerCase()] > 1 ? ' *' : ''}`),
+  '',
+].join('\n'));
 console.log(`ledger: ${ledger.length} keys, ${ledger.filter(k => k.sharedName).length} with a shared name`);
 
 const out = {
