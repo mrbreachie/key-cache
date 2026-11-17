@@ -147,6 +147,12 @@ body[data-view="inv"] .mappick, body[data-view="inv"] .keysbtn { display: none; 
 .floors { position: absolute; left: 38px; top: 38px; z-index: 4; display: flex; flex-direction: column-reverse; gap: 2px; padding: 5px; }
 .floors .cap { order: 99; padding: 6px 8px 5px; }
 .mapwrap .dimmed { opacity: .5; }
+#mapImg { position: relative; }
+.tl, .tlz, .svgfloor { position: absolute; inset: 0; }
+.tl { transition: opacity .18s; }
+.tl.faded { opacity: .35; }
+.tile { position: absolute; display: block; max-width: none; user-select: none; -webkit-user-drag: none; }
+.floors { max-height: calc(100% - 150px); overflow-y: auto; }
 .floornote { position: absolute; left: 50%; top: 38px; transform: translateX(-50%); z-index: 4; max-width: min(440px, calc(100% - 420px)); padding: 9px 14px; border-radius: 12px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line-2); box-shadow: var(--shadow); color: var(--fg); font-size: 13.5px; line-height: 1.45; text-align: center; }
 .floors button {
   display: flex; justify-content: space-between; align-items: baseline; gap: 16px; min-width: 160px;
@@ -405,7 +411,7 @@ select.sort { margin-left: auto; }
       <label><input class="sw" type="checkbox" id="showLocked" checked> Show missing</label>
     </div>
     <footer class="credit">
-      Map images by Shebuka / <a href="https://github.com/the-hideout/tarkov-dev-svg-maps" target="_blank" rel="noopener">tarkov.dev</a> (CC BY-NC-SA 4.0). Door positions and prices from <a href="https://tarkov.dev" target="_blank" rel="noopener">tarkov.dev</a>. Key text from the <a href="https://escapefromtarkov.fandom.com" target="_blank" rel="noopener">Escape from Tarkov Wiki</a> (CC BY-NC-SA). Fan-made, not affiliated with Battlestate Games.
+      <span id="mapCredit"></span> Door positions and prices from <a href="https://tarkov.dev" target="_blank" rel="noopener">tarkov.dev</a>. Key text from the <a href="https://escapefromtarkov.fandom.com" target="_blank" rel="noopener">Escape from Tarkov Wiki</a> (CC BY-NC-SA). Fan-made, not affiliated with Battlestate Games.
     </footer>
   </section>
 
@@ -494,7 +500,7 @@ select.sort { margin-left: auto; }
   <div class="nav-sec">
     <span class="lab">About</span>
     <p>A free fan tool for Escape from Tarkov. <span id="built"></span></p>
-    <p>Map images by Shebuka / <a href="https://github.com/the-hideout/tarkov-dev-svg-maps" target="_blank" rel="noopener">tarkov.dev</a> (CC BY-NC-SA 4.0). Door positions, items and prices from <a href="https://tarkov.dev" target="_blank" rel="noopener">tarkov.dev</a>. Key text from the <a href="https://escapefromtarkov.fandom.com" target="_blank" rel="noopener">Escape from Tarkov Wiki</a> (CC BY-NC-SA). Not affiliated with Battlestate Games.</p>
+    <p>Maps from <a href="https://tarkov.dev" target="_blank" rel="noopener">tarkov.dev</a>: map tiles by Shebuka, TarkovBOT.eu and tarkov.dev, loaded from tarkov.dev; vector maps by Shebuka (<a href="https://github.com/the-hideout/tarkov-dev-svg-maps" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>). Door positions, items and prices from <a href="https://tarkov.dev" target="_blank" rel="noopener">tarkov.dev</a>. Key text from the <a href="https://escapefromtarkov.fandom.com" target="_blank" rel="noopener">Escape from Tarkov Wiki</a> (CC BY-NC-SA). Not affiliated with Battlestate Games.</p>
     <p><a href="https://github.com/mrbreachie/key-cache" target="_blank" rel="noopener">Source code on GitHub</a></p>
   </div>
 </aside>
@@ -832,12 +838,76 @@ select.sort { margin-left: auto; }
     st.floor = baseFloor().name;
     wrap.setAttribute('aria-label', cur.name + ' map');
     img.innerHTML = '';
+    layers = { base: null, over: null };
     wrap.style.width = cur.w + 'px'; wrap.style.height = cur.h + 'px';
     const seq = ++loadSeq, m = cur;
-    loadSvg(m.svg)
-      .then(txt => { if (seq !== loadSeq) return; img.innerHTML = txt; applyFloor(); })
-      .catch(() => { if (seq === loadSeq) img.innerHTML = '<div class="nomap">The map image did not load. Switch maps and back to try again.</div>'; });
-    buildGrid(); fit(); buildPins(); renderFloors();
+    $('mapCredit').innerHTML = m.tiles
+      ? `Map ${m.author ? 'by ' + (m.authorLink ? `<a href="${esc(m.authorLink)}" target="_blank" rel="noopener">${esc(m.author)}</a>` : esc(m.author)) + ' ' : ''}from <a href="https://tarkov.dev/map/${esc(m.id)}" target="_blank" rel="noopener">tarkov.dev</a>.`
+      : 'Map images by Shebuka / <a href="https://github.com/the-hideout/tarkov-dev-svg-maps" target="_blank" rel="noopener">tarkov.dev</a> (CC BY-NC-SA 4.0).';
+    if (m.tiles) {
+      img.innerHTML = '<div class="tl" id="tlBase"></div><div class="tl" id="tlOver"></div><div class="svgfloor" id="svgFloor" hidden></div>';
+      layers.base = newLayer(baseFloor().tiles, $('tlBase'));
+    } else {
+      loadSvg(m.svg)
+        .then(txt => { if (seq !== loadSeq) return; img.innerHTML = txt; applyFloor(); })
+        .catch(() => { if (seq === loadSeq) img.innerHTML = '<div class="nomap">The map image did not load. Switch maps and back to try again.</div>'; });
+    }
+    buildGrid(); fit(); buildPins(); renderFloors(); applyFloor();
+  }
+
+  // ---- tarkov.dev picture tiles
+  // A tile map always shows one low-detail level (minZoom) over the whole map, and
+  // once the map stops moving it adds sharper tiles for just the visible area.
+  // Tile (tx, ty) at zoom z covers P0 [tx, tx + 1) * size / 2^z; the map's top-left
+  // corner is P0 (x0, y0) and one P0 unit is u page units (see tileSpace in build-data).
+  let layers = { base: null, over: null };
+  const tileURL = (path, z, x, y) => path.replace('{z}', z).replace('{x}', x).replace('{y}', y);
+  function newLayer(path, el) { el.innerHTML = ''; return { path, el, lv: {} }; }
+  function tileExtent() { const T = cur.tiles; return [T.x0, T.y0, T.x0 + cur.w / T.u, T.y0 + cur.h / T.u]; }
+  function fillLevel(L, z, rect) {
+    const T = cur.tiles, s = T.size / 2 ** z, ex = tileExtent(), r = rect || ex;
+    let lv = L.lv[z];
+    if (!lv) { const e = document.createElement('div'); e.className = 'tlz'; e.style.zIndex = z; L.el.appendChild(e); lv = L.lv[z] = { el: e, have: new Map() }; }
+    const tx0 = Math.floor(Math.max(r[0], ex[0]) / s), tx1 = Math.floor((Math.min(r[2], ex[2]) - 1e-9) / s);
+    const ty0 = Math.floor(Math.max(r[1], ex[1]) / s), ty1 = Math.floor((Math.min(r[3], ex[3]) - 1e-9) / s);
+    const px = s * T.u, loads = [];
+    for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+      const key = tx + '/' + ty;
+      if (lv.have.has(key)) continue;
+      const im = new Image();
+      im.alt = ''; im.decoding = 'async'; im.draggable = false; im.className = 'tile';
+      // a hair of overlap hides seams between neighbouring tiles
+      im.style.cssText = `left:${(tx * s - ex[0]) * T.u}px;top:${(ty * s - ex[1]) * T.u}px;width:${px * 1.006}px;height:${px * 1.006}px`;
+      loads.push(new Promise(res => { im.onload = res; im.onerror = () => { im.remove(); res(); }; }));
+      im.src = tileURL(L.path, z, tx, ty);
+      lv.el.appendChild(im); lv.have.set(key, im);
+    }
+    return Promise.all(loads);
+  }
+  function visibleP0() {
+    const T = cur.tiles, k = view.k * T.u;
+    return [-view.tx / k + T.x0, -view.ty / k + T.y0, (sr.width - view.tx) / k + T.x0, (sr.height - view.ty) / k + T.y0];
+  }
+  function detailZoom() {
+    const T = cur.tiles;
+    return Math.max(T.min, Math.min(T.max, Math.ceil(Math.log2(view.k * T.u * (window.devicePixelRatio || 1)) - 0.25)));
+  }
+  function updateTiles() {
+    if (!cur || !cur.tiles || sr.width < 50) return;
+    const T = cur.tiles, z = detailZoom(), rect = visibleP0();
+    for (const L of [layers.base, layers.over]) {
+      if (!L) continue;
+      fillLevel(L, T.min);
+      const dropOthers = () => { for (const lz of Object.keys(L.lv)) if (+lz !== T.min && +lz !== detailZoom()) { L.lv[lz].el.remove(); delete L.lv[lz]; } };
+      if (z === T.min) { dropOthers(); continue; }
+      fillLevel(L, z, rect).then(dropOthers);
+      // keep memory in check: forget far-away tiles of this level
+      const lv = L.lv[z], s = T.size / 2 ** z;
+      if (lv.have.size > 300) for (const [key, im] of lv.have) {
+        const [tx, ty] = key.split('/').map(Number);
+        if ((tx + 1) * s < rect[0] - 2 * s || tx * s > rect[2] + 2 * s || (ty + 1) * s < rect[1] - 2 * s || ty * s > rect[3] + 2 * s) { im.remove(); lv.have.delete(key); }
+      }
+    }
   }
   function buildGrid() {
     grid = gridOf(cur);
@@ -873,12 +943,34 @@ select.sort { margin-left: auto; }
   }
   function applyFloor() {
     const sel = cur.floors.find(f => f.name === st.floor) || baseFloor();
-    const base = baseFloor();
-    // Some floors (e.g. Reserve's 2nd to 5th) have doors but no drawing of their own.
-    const undrawn = sel !== base && !sel.svg;
+    const base = baseFloor(), other = sel !== base;
+    // A floor may have doors but no drawing of its own.
+    const undrawn = other && !sel.svg && !sel.tiles;
     const note = $('floorNote');
     note.hidden = !undrawn;
     if (undrawn) note.textContent = `This map has no drawing of the ${sel.name.toLowerCase()}. Its doors are shown on the ground plan.`;
+    if (cur.tiles) {
+      const want = other && sel.tiles ? sel.tiles : '';
+      if (!want) { if (layers.over) { layers.over.el.innerHTML = ''; layers.over = null; } }
+      else if (!layers.over || layers.over.path !== want) layers.over = newLayer(want, $('tlOver'));
+      const tb = $('tlBase');
+      tb.classList.toggle('gone', other && cur.exclusive && !!sel.tiles);
+      tb.classList.toggle('faded', other && !cur.exclusive && !!(sel.tiles || sel.svg));
+      tb.classList.toggle('dimmed', undrawn);
+      // floors only the SVG draws (Interchange's and Shoreline's upper floors) go on top of the tiles
+      const sf = $('svgFloor');
+      if (other && !sel.tiles && sel.svg) {
+        const seq = loadSeq;
+        loadSvg(cur.svg).then(txt => {
+          if (seq !== loadSeq || st.floor !== sel.name) return;
+          if (!sf.firstElementChild) sf.innerHTML = txt;
+          for (const g of sf.querySelector('svg').children) if (g.tagName === 'g' && g.id) g.classList.toggle('gone', g.id !== sel.svg);
+          sf.hidden = false;
+        }).catch(() => {});
+      } else sf.hidden = true;
+      updateTiles();
+      return;
+    }
     const svg = img.querySelector('svg'); if (!svg) return;
     for (const f of cur.floors) {
       if (!f.svg || f.base) continue;
@@ -910,7 +1002,7 @@ select.sort { margin-left: auto; }
     if (!raf) raf = requestAnimationFrame(render);
     if (!stage.classList.contains('moving')) stage.classList.add('moving');
     clearTimeout(idle);
-    idle = setTimeout(() => stage.classList.remove('moving'), 160);
+    idle = setTimeout(() => { stage.classList.remove('moving'); updateTiles(); }, 160);
   }
   function render() {
     raf = 0;

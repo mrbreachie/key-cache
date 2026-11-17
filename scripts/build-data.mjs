@@ -45,9 +45,11 @@ const MAPS = [
   { id: 'woods', name: 'Woods', svg: 'Woods.svg' },
   { id: 'ground-zero', name: 'Ground Zero', svg: 'GroundZero.svg', also: ['ground-zero-21'] },
   { id: 'terminal', name: 'Terminal', svg: 'Terminal.svg' },
+  { id: 'the-labyrinth', name: 'The Labyrinth', svg: null },
+  { id: 'icebreaker', name: 'Icebreaker', svg: null },
 ];
-// Maps with keys but no SVG yet: keys are listed, doors are not pinned.
-const NO_SVG = { 'the-labyrinth': 'The Labyrinth', icebreaker: 'Icebreaker' };
+// Maps with keys but no map image at all: keys are listed, doors are not pinned.
+const NO_SVG = {};
 const mapOf = {};
 MAPS.forEach(m => [m.id, ...(m.also || [])].forEach(a => (mapOf[a] = m.id)));
 
@@ -67,6 +69,29 @@ function projector(cfg) {
     return [(px - minX) / (maxX - minX), (py - minY) / (maxY - minY)];
   };
 }
+
+// tarkov.dev's tile maps (Leaflet, CRS.Simple): a game position (x, z) is
+// rotated by coordinateRotation, then pixel = 2^zoom * (t0*rx + t1, -t2*ry + t3)
+// with transform [t0, t1, t2, t3]. "P0" below is that pixel space at zoom 0.
+// Tiles are tileSize squares of it, so tile (tx, ty) at zoom z covers
+// P0 [tx, tx + 1) * tileSize / 2^z. The map rectangle is the config's bounds.
+function tileSpace(cfg) {
+  const [t0, t1, t2, t3] = cfg.transform;
+  const r = ((cfg.coordinateRotation || 0) * Math.PI) / 180;
+  const p0 = (x, z) => {
+    const rx = x * Math.cos(r) - z * Math.sin(r), ry = x * Math.sin(r) + z * Math.cos(r);
+    return [t0 * rx + t1, -t2 * ry + t3];
+  };
+  const [a, b] = cfg.bounds.map(([x, z]) => p0(x, z));
+  const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
+  const u = 1000 / Math.max(x1 - x0, y1 - y0); // page units per P0 unit: the long side is 1000
+  return {
+    frac: (x, z) => { const [px, py] = p0(x, z); return [(px - x0) / (x1 - x0), (py - y0) / (y1 - y0)]; },
+    w: (x1 - x0) * u, h: (y1 - y0) * u,
+    tiles: { size: cfg.tileSize || 256, min: cfg.minZoom, max: cfg.maxZoom, x0, y0, u },
+  };
+}
+const usesTiles = id => !!cfgOf[id]?.tilePath;
 
 // tarkov.dev draws The Lab from tiles, so nobody publishes bounds for
 // Labs.svg, and projecting with the tile bounds puts pins in the wrong place.
@@ -127,9 +152,15 @@ for (const am of apiMaps) {
     if (seen.has(sig)) continue;
     seen.add(sig);
     const cfg = cfgOf[mid];
-    let [fx, fy] = projector(cfg)(l.position.x, l.position.z);
-    const cal = CALIBRATE[mid];
-    if (cal) { fx = cal.ax * fx + cal.bx; fy = cal.ay * fy + cal.by; }
+    let fx, fy;
+    if (usesTiles(mid)) {
+      // tiles are placed with tarkov.dev's own projection, so no correction is needed
+      [fx, fy] = tileSpace(cfg).frac(l.position.x, l.position.z);
+    } else {
+      [fx, fy] = projector(cfg)(l.position.x, l.position.z);
+      const cal = CALIBRATE[mid]; // SVG-only corrections
+      if (cal) { fx = cal.ax * fx + cal.bx; fy = cal.ay * fy + cal.by; }
+    }
     doors.push({
       id: l.id, map: mid, key: l.key,
       x: +fx.toFixed(4), y: +fy.toFixed(4),
@@ -198,6 +229,28 @@ const LEVEL_SWAP = {
   'the-lab': { base: 'First_Level', baseName: 'Main Level', layers: { 'Second Level': 'Second_Level', Technical: 'Technical_Level' } },
 };
 const BELOW = /under|garage|tunnel|basement|bunker|technical/i;
+// Floors of a tile map: the main tiles are the base, each config layer with its
+// own tiles is drawn on top. A layer without tiles can still use the map's SVG
+// floor group (Interchange's and Shoreline's upper floors).
+const BASE_NAME = { 'the-lab': 'Main Level' };
+function floorsForTiles(id, svg) {
+  const cfg = cfgOf[id];
+  const has = g => g && svg && svg.includes(`id="${g}"`);
+  const layers = cfg.layers || [];
+  // Icebreaker lists its main deck again as a layer: use that layer's name for the base.
+  const same = layers.find(l => l.tilePath === cfg.tilePath);
+  const list = [{ name: same ? same.name : BASE_NAME[id] || 'Ground', tiles: cfg.tilePath, svg: '', base: true }];
+  for (const l of layers) {
+    if (l === same) continue;
+    list.push({ name: l.name, tiles: l.tilePath || '', svg: !l.tilePath && has(l.svgLayer) ? l.svgLayer : '' });
+  }
+  // Icebreaker's deck tiles are numbered bottom to top (00_control_room ... 15_bridge_roof).
+  const deck = f => +((f.tiles.match(/\/(\d\d)_/) || [])[1] ?? NaN);
+  if (list.every(f => !isNaN(deck(f)))) return list.sort((a, b) => deck(a) - deck(b));
+  const below = list.filter(f => BELOW.test(f.name));
+  const rest = list.filter(f => !BELOW.test(f.name));
+  return [...below, ...rest];
+}
 function floorsFor(id, svg) {
   const cfg = cfgOf[id] || {};
   const swap = LEVEL_SWAP[id];
@@ -228,12 +281,25 @@ await mkdir(p('assets/maps/'), { recursive: true });
 await mkdir(p('data/icons/'), { recursive: true });
 await mkdir(p('data/preview/'), { recursive: true });
 for (const m of MAPS) {
-  const svg = await readFile(p(`data/svg/${m.svg}`), 'utf8');
-  const vb = svg.slice(0, 2000).match(/viewBox="([^"]+)"/)[1].split(/[\s,]+/).map(Number);
-  m.w = vb[2]; m.h = vb[3];
+  const cfg = cfgOf[m.id];
+  m.author = cfg?.author || ''; m.authorLink = cfg?.authorLink || '';
   m.doors = doors.filter(d => d.map === m.id && !d.nopin).length;
-  m.floors = floorsFor(m.id, svg);
-  m.exclusive = !!LEVEL_SWAP[m.id];
+  const svg = m.svg ? await readFile(p(`data/svg/${m.svg}`), 'utf8') : '';
+  if (usesTiles(m.id)) {
+    const t = tileSpace(cfg);
+    m.w = t.w; m.h = t.h; m.tiles = t.tiles;
+    m.floors = floorsForTiles(m.id, svg);
+    m.exclusive = m.id === 'the-lab'; // every Labs level is a full floor plan
+    // keep the SVG only when a floor still needs it
+    if (!m.floors.some(f => f.svg)) m.svg = null;
+  } else {
+    const vb = svg.slice(0, 2000).match(/viewBox="([^"]+)"/)[1].split(/[\s,]+/).map(Number);
+    m.w = vb[2]; m.h = vb[3];
+    m.floors = floorsFor(m.id, svg);
+    m.exclusive = !!LEVEL_SWAP[m.id];
+  }
+  delete m.also;
+  if (!m.svg) continue;
   const scoped = scopeSvg(svg);
   await writeFile(p(`data/preview/${m.svg}`), scoped);
   // The page loads maps as <script> files (maps/Name.js), the same way it loads

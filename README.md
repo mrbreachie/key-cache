@@ -10,7 +10,7 @@ A free fan tool for Escape from Tarkov. Tick the keys you own, and the map shows
 
 ## What it does
 
-- **259 keys and keycards, 241 doors pinned** across 11 maps: Customs, Factory, Interchange, The Lab, Lighthouse, Reserve, Shoreline, Streets of Tarkov, Woods, Ground Zero and Terminal.
+- **259 keys and keycards, 258 doors pinned** across 13 maps: Customs, Factory, Interchange, The Lab, Lighthouse, Reserve, Shoreline, Streets of Tarkov, Woods, Ground Zero, Terminal, The Labyrinth and Icebreaker.
 - **Key inventory:** a page with every key as a card: what's behind the door, which maps, flea price and how many doors it opens. Filter by map, owned or missing, and sort by name, price or doors.
 - **Your keys, your doors:** each map lists how many of its doors you can open. Doors you have a key for show as solid white pins; the rest are hollow rings.
 - **Simple navigation:** a map dropdown at the top left, a menu for the pages, your totals and backups, and a key list that slides out over the map.
@@ -60,7 +60,7 @@ Door positions use the same projection as tarkov.dev. The Lab's map image has no
 ## Credits and licences
 
 - **Code** (`index.html`, `scripts/`): MIT, see [LICENSE](LICENSE).
-- **Map images:** by Shebuka for [tarkov.dev](https://github.com/the-hideout/tarkov-dev-svg-maps), CC BY-NC-SA 4.0.
+- **Maps:** from [tarkov.dev](https://tarkov.dev). Customs, Factory, Interchange, The Lab, Reserve, Shoreline, Woods, Ground Zero, The Labyrinth and Icebreaker use tarkov.dev's map tiles (by Shebuka, TarkovBOT.eu and tarkov.dev), loaded from tarkov.dev when you view them. Streets of Tarkov, Lighthouse and Terminal, and the upper floors of Interchange and Shoreline, use the vector maps by Shebuka from [tarkov-dev-svg-maps](https://github.com/the-hideout/tarkov-dev-svg-maps), CC BY-NC-SA 4.0.
 - **Key text:** [Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com), CC BY-NC-SA.
 - **Door positions, items, prices and icons:** [tarkov.dev](https://tarkov.dev).
 
