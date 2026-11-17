@@ -139,18 +139,40 @@ wiki.forEach(w => (wikiByUrl[norm(w.wiki)] = w));
 const titleCase = s => s.replace(/-/g, ' ').replace(/^./, c => c.toUpperCase());
 
 // Where a game position lands on a map, as fractions of the map image (0..1).
+// A map can have tiles (satellite style) and a drawing (SVG, drawn style).
+// x, y place a point on the tiles when the map has them, else on the drawing;
+// sx, sy place it on the drawing when the map has both.
+const hasSvg = mid => !!MAPS.find(m => m.id === mid)?.svg;
+function svgFrac(mid, x, z) {
+  let [fx, fy] = projector(cfgOf[mid])(x, z);
+  const cal = CALIBRATE[mid]; // SVG-only corrections
+  if (cal) { fx = cal.ax * fx + cal.bx; fy = cal.ay * fy + cal.by; }
+  return [fx, fy];
+}
 function place(mid, pos) {
-  const cfg = cfgOf[mid];
-  let fx, fy;
+  const cfg = cfgOf[mid], r4 = v => +v.toFixed(4);
+  const out = {};
   if (usesTiles(mid)) {
     // tiles are placed with tarkov.dev's own projection, so no correction is needed
-    [fx, fy] = tileSpace(cfg).frac(pos.x, pos.z);
+    const [fx, fy] = tileSpace(cfg).frac(pos.x, pos.z);
+    out.x = r4(fx); out.y = r4(fy);
+    if (hasSvg(mid)) { const [sx, sy] = svgFrac(mid, pos.x, pos.z); out.sx = r4(sx); out.sy = r4(sy); }
   } else {
-    [fx, fy] = projector(cfg)(pos.x, pos.z);
-    const cal = CALIBRATE[mid]; // SVG-only corrections
-    if (cal) { fx = cal.ax * fx + cal.bx; fy = cal.ay * fy + cal.by; }
+    const [fx, fy] = svgFrac(mid, pos.x, pos.z);
+    out.x = r4(fx); out.y = r4(fy);
   }
-  return { x: +fx.toFixed(4), y: +fy.toFixed(4), floor: floorName(cfg, pos) };
+  out.floor = floorName(cfg, pos);
+  return out;
+}
+// For a map with both: drawing fraction = a * tile fraction + b on each axis
+// (both projections are axis-aligned and linear in game x, z).
+function tileToSvg(mid) {
+  const cfg = cfgOf[mid], t = tileSpace(cfg);
+  const [[x1, z1], [x2, z2]] = cfg.bounds;
+  const [t1x, t1y] = t.frac(x1, z1), [t2x, t2y] = t.frac(x2, z2);
+  const [s1x, s1y] = svgFrac(mid, x1, z1), [s2x, s2y] = svgFrac(mid, x2, z2);
+  const ax = (s2x - s1x) / (t2x - t1x), ay = (s2y - s1y) / (t2y - t1y);
+  return { ax, bx: s1x - ax * t1x, ay, by: s1y - ay * t1y };
 }
 
 // Doors
@@ -265,10 +287,13 @@ function floorsForTiles(id, svg) {
   const layers = cfg.layers || [];
   // Icebreaker lists its main deck again as a layer: use that layer's name for the base.
   const same = layers.find(l => l.tilePath === cfg.tilePath);
-  const list = [{ name: same ? same.name : BASE_NAME[id] || 'Ground', tiles: cfg.tilePath, svg: '', base: true }];
+  const swap = LEVEL_SWAP[id];
+  const baseSvg = swap ? swap.base : cfg.svgLayer;
+  const list = [{ name: same ? same.name : BASE_NAME[id] || 'Ground', tiles: cfg.tilePath, svg: has(baseSvg) ? baseSvg : '', base: true }];
   for (const l of layers) {
     if (l === same) continue;
-    list.push({ name: l.name, tiles: l.tilePath || '', svg: !l.tilePath && has(l.svgLayer) ? l.svgLayer : '' });
+    const g = swap ? swap.layers[l.name] : l.svgLayer;
+    list.push({ name: l.name, tiles: l.tilePath || '', svg: has(g) ? g : '' });
   }
   // Icebreaker's deck tiles are numbered bottom to top (00_control_room ... 15_bridge_roof).
   const deck = f => +((f.tiles.match(/\/(\d\d)_/) || [])[1] ?? NaN);
@@ -311,16 +336,18 @@ for (const m of MAPS) {
   m.author = cfg?.author || ''; m.authorLink = cfg?.authorLink || '';
   m.doors = doors.filter(d => d.map === m.id && !d.nopin).length;
   const svg = m.svg ? await readFile(p(`data/svg/${m.svg}`), 'utf8') : '';
+  // the page sizes the map from tiles.w/h (satellite) or sw/sh (drawn)
+  if (svg) {
+    const vb = svg.slice(0, 2000).match(/viewBox="([^"]+)"/)[1].split(/[\s,]+/).map(Number);
+    m.sw = vb[2]; m.sh = vb[3];
+  }
   if (usesTiles(m.id)) {
     const t = tileSpace(cfg);
-    m.w = t.w; m.h = t.h; m.tiles = t.tiles;
+    m.tiles = { ...t.tiles, w: t.w, h: t.h };
     m.floors = floorsForTiles(m.id, svg);
     m.exclusive = m.id === 'the-lab'; // every Labs level is a full floor plan
-    // keep the SVG only when a floor still needs it
-    if (!m.floors.some(f => f.svg)) m.svg = null;
+    if (svg) m.t2s = tileToSvg(m.id);
   } else {
-    const vb = svg.slice(0, 2000).match(/viewBox="([^"]+)"/)[1].split(/[\s,]+/).map(Number);
-    m.w = vb[2]; m.h = vb[3];
     m.floors = floorsFor(m.id, svg);
     m.exclusive = !!LEVEL_SWAP[m.id];
   }

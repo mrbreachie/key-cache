@@ -161,6 +161,11 @@ body[data-view="inv"] .mappick, body[data-view="inv"] .keysbtn { display: none; 
 .tl, .tlz, .svgfloor { position: absolute; inset: 0; }
 .tl { transition: opacity .18s; }
 .tl.faded { opacity: .35; }
+.svgbase { position: absolute; inset: 0; }
+.mstyle { position: absolute; right: calc(14px + var(--pr)); top: 172px; z-index: 4; display: grid; gap: 2px; padding: 4px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line-2); border-radius: 12px; box-shadow: var(--shadow); transition: right .25s var(--ease); }
+.mstyle button { border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12.5px; font-weight: 500; padding: 7px 10px; }
+.mstyle button:hover { color: var(--fg); background: rgba(255,255,255,.07); }
+.mstyle button[aria-pressed="true"] { background: var(--fg); color: var(--hi-ink); font-weight: 650; }
 .tile { position: absolute; display: block; max-width: none; user-select: none; -webkit-user-drag: none; }
 .floors { max-height: calc(100% - 150px); overflow-y: auto; }
 .floornote { position: absolute; left: 50%; top: 38px; transform: translateX(-50%); z-index: 4; max-width: min(440px, calc(100% - 420px)); padding: 9px 14px; border-radius: 12px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line-2); box-shadow: var(--shadow); color: var(--fg); font-size: 13.5px; line-height: 1.45; text-align: center; }
@@ -375,6 +380,7 @@ select.sort { margin-left: auto; }
   .floornote { top: auto; bottom: 150px; max-width: calc(100% - 48px); font-size: 12.5px; }
   .floors button { min-width: 0; font-size: 13px; padding: 8px 9px; gap: 8px; }
   .zoom { top: 32px; right: 8px; }
+  .mstyle { top: 160px; right: 8px; }
   .legend { left: 32px; right: 8px; bottom: 74px; gap: 6px 12px; font-size: 12.5px; padding: 8px 10px; }
   .legend .s { gap: 6px; }
   .legend label { padding-left: 0; border-left: 0; gap: 6px; }
@@ -448,6 +454,10 @@ select.sort { margin-left: auto; }
       <button id="zIn" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button>
       <button id="zOut" aria-label="Zoom out" title="Zoom out"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 8h10"/></svg></button>
       <button id="zFit" aria-label="Fit map" title="Fit map"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg></button>
+    </div>
+    <div class="mstyle" id="mstyle" role="group" aria-label="Map style" hidden>
+      <button data-s="drawn" aria-pressed="true">Drawn</button>
+      <button data-s="satellite" aria-pressed="false">Satellite</button>
     </div>
     <div class="legend">
       <span class="s"><svg class="lg o" aria-hidden="true"><use href="#i-unlock"/></svg>You can open</span>
@@ -591,12 +601,20 @@ select.sort { margin-left: auto; }
   // ---- grid references (12 cells along the long side of each map)
   const GRID = 12;
   const colName = i => String.fromCharCode(65 + i);
-  const gridOf = m => { const cell = Math.max(m.w, m.h) / GRID; return { cell, cols: Math.ceil(m.w / cell - 0.01), rows: Math.ceil(m.h / cell - 0.01) }; };
+  // Map style: drawn (the vector drawing) or satellite (tarkov.dev's tiles). A map with
+  // only one of them always uses it. Points carry x, y for the tiles (or the drawing
+  // on drawing-only maps) and sx, sy for the drawing on maps with both.
+  const useSvgFor = m => !!m.svg && (st.mstyle === 'drawn' || !m.tiles);
+  const dimsOf = m => useSvgFor(m) ? [m.sw, m.sh] : [m.tiles.w, m.tiles.h];
+  const fracOf = o => useSvgFor(mapById[o.map]) && o.sx != null ? [o.sx, o.sy] : [o.x, o.y];
+  let useSvg = false;
+  const gridOf = m => { const [w, h] = dimsOf(m), cell = Math.max(w, h) / GRID; return { cell, w, h, cols: Math.ceil(w / cell - 0.01), rows: Math.ceil(h / cell - 0.01) }; };
   const gridRef = d => {
     const m = mapById[d.map]; if (!m) return '';
     const g = gridOf(m);
-    const c = Math.min(g.cols - 1, Math.max(0, Math.floor(d.x * m.w / g.cell)));
-    const r = Math.min(g.rows - 1, Math.max(0, Math.floor(d.y * m.h / g.cell)));
+    const [fx, fy] = fracOf(d);
+    const c = Math.min(g.cols - 1, Math.max(0, Math.floor(fx * g.w / g.cell)));
+    const r = Math.min(g.rows - 1, Math.max(0, Math.floor(fy * g.h / g.cell)));
     return colName(c) + (r + 1);
   };
 
@@ -606,12 +624,12 @@ select.sort { margin-left: auto; }
   try { owned = new Set(JSON.parse(localStorage.getItem(STORE) || '[]')); } catch {}
   const save = () => { try { localStorage.setItem(STORE, JSON.stringify([...owned])); } catch {} };
   const st = { view: null, map: 'customs', sel: null, q: '', fMap: true, fOwned: false, fMissing: false, sort: 'name', showLocked: true, hover: null,
-    panel: false, panelPref: true, iq: '', imap: '', iown: 'all', isort: 'name', iview: 'info', showSpawns: true };
+    panel: false, panelPref: true, iq: '', imap: '', iown: 'all', isort: 'name', iview: 'info', showSpawns: true, mstyle: 'drawn' };
   try {
     const v = JSON.parse(localStorage.getItem('tk-ui-v1') || '{}');
-    Object.assign(st, { fMap: v.fMap ?? true, sort: v.sort || 'name', showLocked: v.showLocked ?? true, panelPref: v.panel ?? true, isort: v.isort || 'name', iview: v.iview === 'list' ? 'list' : 'info', showSpawns: v.showSpawns ?? true });
+    Object.assign(st, { fMap: v.fMap ?? true, sort: v.sort || 'name', showLocked: v.showLocked ?? true, panelPref: v.panel ?? true, isort: v.isort || 'name', iview: v.iview === 'list' ? 'list' : 'info', showSpawns: v.showSpawns ?? true, mstyle: v.mstyle === 'satellite' ? 'satellite' : 'drawn' });
   } catch {}
-  const saveUi = () => { try { localStorage.setItem('tk-ui-v1', JSON.stringify({ fMap: st.fMap, sort: st.sort, showLocked: st.showLocked, panel: st.panelPref, isort: st.isort, iview: st.iview, showSpawns: st.showSpawns })); } catch {} };
+  const saveUi = () => { try { localStorage.setItem('tk-ui-v1', JSON.stringify({ fMap: st.fMap, sort: st.sort, showLocked: st.showLocked, panel: st.panelPref, isort: st.isort, iview: st.iview, showSpawns: st.showSpawns, mstyle: st.mstyle })); } catch {} };
   // Keys you're looking for: their fixed spawns are highlighted on the map. Kept per browser.
   const HUNT = 'tk-hunt-v1';
   let hunt = new Set();
@@ -939,34 +957,61 @@ select.sort { margin-left: auto; }
   function loadMap() {
     cur = mapById[st.map];
     st.floor = baseFloor().name;
+    useSvg = useSvgFor(cur);
+    [cur.w, cur.h] = dimsOf(cur);
     wrap.setAttribute('aria-label', cur.name + ' map');
     img.innerHTML = '';
     layers = { base: null, over: null };
     wrap.style.width = cur.w + 'px'; wrap.style.height = cur.h + 'px';
     const seq = ++loadSeq, m = cur;
-    $('mapCredit').innerHTML = m.tiles
+    $('mapCredit').innerHTML = !useSvg
       ? `Map ${m.author ? 'by ' + (m.authorLink ? `<a href="${esc(m.authorLink)}" target="_blank" rel="noopener">${esc(m.author)}</a>` : esc(m.author)) + ' ' : ''}from <a href="https://tarkov.dev/map/${esc(m.id)}" target="_blank" rel="noopener">tarkov.dev</a>.`
-      : 'Map images by Shebuka / <a href="https://github.com/the-hideout/tarkov-dev-svg-maps" target="_blank" rel="noopener">tarkov.dev</a> (CC BY-NC-SA 4.0).';
-    if (m.tiles) {
+      : 'Map images by Shebuka / <a href="https://github.com/the-hideout/tarkov-dev-svg-maps" target="_blank" rel="noopener">tarkov.dev</a> (CC BY-NC-SA 4.0)' + (m.tiles ? ', floor tiles from <a href="https://tarkov.dev/map/' + esc(m.id) + '" target="_blank" rel="noopener">tarkov.dev</a>.' : '.');
+    // the Drawn / Satellite switch only shows on maps that have both
+    const ms = $('mstyle');
+    ms.hidden = !(m.svg && m.tiles);
+    ms.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === (useSvg ? 'drawn' : 'satellite')));
+    if (useSvg) {
+      img.innerHTML = '<div class="svgbase" id="svgBase"></div><div class="tl" id="tlOver"></div>';
+      loadSvg(m.svg)
+        .then(txt => { if (seq !== loadSeq) return; $('svgBase').innerHTML = txt; applyFloor(); })
+        .catch(() => { if (seq === loadSeq) $('svgBase').innerHTML = '<div class="nomap">The map image did not load. Switch maps and back to try again.</div>'; });
+    } else {
       img.innerHTML = '<div class="tl" id="tlBase"></div><div class="tl" id="tlOver"></div><div class="svgfloor" id="svgFloor" hidden></div>';
       layers.base = newLayer(baseFloor().tiles, $('tlBase'));
-    } else {
-      loadSvg(m.svg)
-        .then(txt => { if (seq !== loadSeq) return; img.innerHTML = txt; applyFloor(); })
-        .catch(() => { if (seq === loadSeq) img.innerHTML = '<div class="nomap">The map image did not load. Switch maps and back to try again.</div>'; });
     }
     buildGrid(); fit(); buildPins(); renderFloors(); applyFloor();
   }
+  $('mstyle').addEventListener('click', e => {
+    const b = e.target.closest('button[data-s]'); if (!b || b.dataset.s === st.mstyle) return;
+    st.mstyle = b.dataset.s; saveUi();
+    const floor = st.floor;
+    loadMap();
+    if (floor !== st.floor) setFloor(floor);
+  });
 
   // ---- tarkov.dev picture tiles
-  // A tile map always shows one low-detail level (minZoom) over the whole map, and
-  // once the map stops moving it adds sharper tiles for just the visible area.
+  // Satellite style shows the tiles as the map: one low-detail level (minZoom) over
+  // the whole map, plus sharper tiles for the visible area once the map stops moving.
+  // Drawn style uses them only for floors the drawing lacks, laid over the drawing.
   // Tile (tx, ty) at zoom z covers P0 [tx, tx + 1) * size / 2^z; the map's top-left
-  // corner is P0 (x0, y0) and one P0 unit is u page units (see tileSpace in build-data).
+  // corner is P0 (x0, y0) and one P0 unit is u tile-map units (see tileSpace in build-data).
   let layers = { base: null, over: null };
   const tileURL = (path, z, x, y) => path.replace('{z}', z).replace('{x}', x).replace('{y}', y);
-  function newLayer(path, el) { el.innerHTML = ''; return { path, el, lv: {} }; }
-  function tileExtent() { const T = cur.tiles; return [T.x0, T.y0, T.x0 + cur.w / T.u, T.y0 + cur.h / T.u]; }
+  // Where the tile map sits on the page: as is (satellite), or fitted onto the drawing (drawn).
+  function tileFrame() {
+    const T = cur.tiles;
+    if (!useSvg) return { gx: 1, gy: 1, ox: 0, oy: 0 };
+    const t = cur.t2s;
+    return { gx: t.ax * cur.w / T.w, gy: t.ay * cur.h / T.h, ox: t.bx * cur.w, oy: t.by * cur.h };
+  }
+  function newLayer(path, el) {
+    el.innerHTML = '';
+    const T = cur.tiles, f = tileFrame();
+    el.style.cssText = useSvg ? `inset:auto;left:0;top:0;width:${T.w}px;height:${T.h}px;transform-origin:0 0;transform:translate(${f.ox}px,${f.oy}px) scale(${f.gx},${f.gy})` : '';
+    return { path, el, lv: {} };
+  }
+  function tileExtent() { const T = cur.tiles; return [T.x0, T.y0, T.x0 + T.w / T.u, T.y0 + T.h / T.u]; }
   function fillLevel(L, z, rect) {
     const T = cur.tiles, s = T.size / 2 ** z, ex = tileExtent(), r = rect || ex;
     let lv = L.lv[z];
@@ -988,12 +1033,14 @@ select.sort { margin-left: auto; }
     return Promise.all(loads);
   }
   function visibleP0() {
-    const T = cur.tiles, k = view.k * T.u;
-    return [-view.tx / k + T.x0, -view.ty / k + T.y0, (sr.width - view.tx) / k + T.x0, (sr.height - view.ty) / k + T.y0];
+    const T = cur.tiles, f = tileFrame();
+    const wx = x => ((x - view.tx) / view.k - f.ox) / f.gx / T.u + T.x0;
+    const wy = y => ((y - view.ty) / view.k - f.oy) / f.gy / T.u + T.y0;
+    return [wx(0), wy(0), wx(sr.width), wy(sr.height)];
   }
   function detailZoom() {
     const T = cur.tiles;
-    return Math.max(T.min, Math.min(T.max, Math.ceil(Math.log2(view.k * T.u * (window.devicePixelRatio || 1)) - 0.25)));
+    return Math.max(T.min, Math.min(T.max, Math.ceil(Math.log2(view.k * tileFrame().gx * T.u * (window.devicePixelRatio || 1)) - 0.25)));
   }
   function updateTiles() {
     if (!cur || !cur.tiles || sr.width < 50) return;
@@ -1047,26 +1094,31 @@ select.sort { margin-left: auto; }
   function applyFloor() {
     const sel = cur.floors.find(f => f.name === st.floor) || baseFloor();
     const base = baseFloor(), other = sel !== base;
-    // A floor may have doors but no drawing of its own.
+    // A floor may have doors but no drawing of its own in either style.
     const undrawn = other && !sel.svg && !sel.tiles;
     const note = $('floorNote');
     note.hidden = !undrawn;
     if (undrawn) note.textContent = `This map has no drawing of the ${sel.name.toLowerCase()}. Its doors are shown on the ground plan.`;
+    // Floor tiles go on top: always in satellite style; in drawn style only for floors the drawing lacks.
+    const wantTiles = cur.tiles && other && sel.tiles && (!useSvg || !sel.svg) ? sel.tiles : '';
     if (cur.tiles) {
-      const want = other && sel.tiles ? sel.tiles : '';
-      if (!want) { if (layers.over) { layers.over.el.innerHTML = ''; layers.over = null; } }
-      else if (!layers.over || layers.over.path !== want) layers.over = newLayer(want, $('tlOver'));
+      if (!wantTiles) { if (layers.over) { layers.over.el.innerHTML = ''; layers.over = null; } }
+      else if (!layers.over || layers.over.path !== wantTiles) layers.over = newLayer(wantTiles, $('tlOver'));
+    }
+    if (!useSvg) {
       const tb = $('tlBase');
       tb.classList.toggle('gone', other && cur.exclusive && !!sel.tiles);
       tb.classList.toggle('faded', other && !cur.exclusive && !!(sel.tiles || sel.svg));
       tb.classList.toggle('dimmed', undrawn);
-      // floors only the SVG draws (Interchange's and Shoreline's upper floors) go on top of the tiles
+      // floors only the drawing has (Interchange's and Shoreline's upper floors) go over the tiles
       const sf = $('svgFloor');
       if (other && !sel.tiles && sel.svg) {
-        const seq = loadSeq;
+        const seq = loadSeq, t = cur.t2s;
         loadSvg(cur.svg).then(txt => {
           if (seq !== loadSeq || st.floor !== sel.name) return;
           if (!sf.firstElementChild) sf.innerHTML = txt;
+          // the drawing covers drawing fractions 0..1, i.e. tile fractions (0 - b) / a .. (1 - b) / a
+          sf.style.cssText = `inset:auto;left:${-t.bx / t.ax * cur.w}px;top:${-t.by / t.ay * cur.h}px;width:${cur.w / t.ax}px;height:${cur.h / t.ay}px`;
           for (const g of sf.querySelector('svg').children) if (g.tagName === 'g' && g.id) g.classList.toggle('gone', g.id !== sel.svg);
           sf.hidden = false;
         }).catch(() => {});
@@ -1074,6 +1126,7 @@ select.sort { margin-left: auto; }
       updateTiles();
       return;
     }
+    updateTiles();
     const svg = img.querySelector('svg'); if (!svg) return;
     for (const f of cur.floors) {
       if (!f.svg || f.base) continue;
@@ -1082,9 +1135,8 @@ select.sort { margin-left: auto; }
     }
     const bg = base.svg && svg.querySelector('#' + base.svg);
     if (bg) {
-      const other = sel !== base;
-      bg.classList.toggle('gone', other && cur.exclusive);
-      bg.classList.toggle('faded', other && !cur.exclusive && !!sel.svg);
+      bg.classList.toggle('gone', other && cur.exclusive && !!(sel.svg || sel.tiles));
+      bg.classList.toggle('faded', other && !cur.exclusive && !!(sel.svg || sel.tiles));
       bg.classList.toggle('dimmed', undrawn);
     }
   }
@@ -1142,7 +1194,7 @@ select.sort { margin-left: auto; }
   function centerOn(pts) {
     if (!pts.length || sr.width < 50) return;
     const r = sr, w = r.width - insetR;
-    const xs = pts.map(d => d.x * cur.w), ys = pts.map(d => d.y * cur.h);
+    const xs = pts.map(d => fracOf(d)[0] * cur.w), ys = pts.map(d => fracOf(d)[1] * cur.h);
     const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
     const span = Math.max((maxX - minX) / w, (maxY - minY) / r.height);
     view.k = Math.min(view.k0 * 4, Math.max(view.k0 * 2.5, span ? 0.6 / span : view.k0 * 3));
@@ -1191,7 +1243,7 @@ select.sort { margin-left: auto; }
     placePins();
   }
   function placePins() {
-    const at = o => `translate(${view.tx + o.x * cur.w * view.k}px, ${view.ty + o.y * cur.h * view.k}px)`;
+    const at = o => { const [fx, fy] = fracOf(o); return `translate(${view.tx + fx * cur.w * view.k}px, ${view.ty + fy * cur.h * view.k}px)`; };
     for (const { el, d } of pinEls) el.style.transform = at(d);
     for (const { el, s } of spawnEls) el.style.transform = at(s);
     if (st.hover) showTip(st.hover);
@@ -1208,8 +1260,9 @@ select.sort { margin-left: auto; }
         (more > 0 ? ` (or ${plural(more, 'other item')})` : '') + fl;
     }
     tip.hidden = false;
-    tip.style.left = view.tx + o.x * cur.w * view.k + 'px';
-    tip.style.top = view.ty + o.y * cur.h * view.k + 'px';
+    const [fx, fy] = fracOf(o);
+    tip.style.left = view.tx + fx * cur.w * view.k + 'px';
+    tip.style.top = view.ty + fy * cur.h * view.k + 'px';
   }
   const markerAt = e => e.target.closest('.pin, .spawn');
   const markerOf = el => el.classList.contains('pin') ? pinEls[+el.dataset.i] : spawnEls[+el.dataset.s];
@@ -1231,7 +1284,7 @@ select.sort { margin-left: auto; }
   // pan / pinch / wheel
   const ptrs = new Map();
   stage.addEventListener('pointerdown', e => {
-    if (e.target.closest('.pin, .spawn, .zoom, .legend, .credit, .floors')) return;
+    if (e.target.closest('.pin, .spawn, .zoom, .mstyle, .legend, .credit, .floors')) return;
     stage.setPointerCapture(e.pointerId);
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     stage.classList.add('drag');

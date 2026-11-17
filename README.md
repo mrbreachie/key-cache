@@ -61,7 +61,7 @@ Door positions use the same projection as tarkov.dev. The Lab's map image has no
 ## Credits and licences
 
 - **Code** (`index.html`, `scripts/`): MIT, see [LICENSE](LICENSE).
-- **Maps:** from [tarkov.dev](https://tarkov.dev). Customs, Factory, Interchange, The Lab, Reserve, Shoreline, Woods, Ground Zero, The Labyrinth and Icebreaker use tarkov.dev's map tiles (by Shebuka, TarkovBOT.eu and tarkov.dev), loaded from tarkov.dev when you view them. Streets of Tarkov, Lighthouse and Terminal, and the upper floors of Interchange and Shoreline, use the vector maps by Shebuka from [tarkov-dev-svg-maps](https://github.com/the-hideout/tarkov-dev-svg-maps), CC BY-NC-SA 4.0.
+- **Maps:** from [tarkov.dev](https://tarkov.dev), in two styles you can switch between. **Drawn** (the default) uses the vector maps by Shebuka from [tarkov-dev-svg-maps](https://github.com/the-hideout/tarkov-dev-svg-maps), CC BY-NC-SA 4.0. **Satellite** uses tarkov.dev's map tiles (by Shebuka, TarkovBOT.eu and tarkov.dev), loaded from tarkov.dev when you view them. Floors that the drawings don't have (Reserve's upper floors, Customs' 4th floor) use tarkov.dev's floor tiles in both styles. The Labyrinth and Icebreaker only have tiles.
 - **Key text:** [Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com), CC BY-NC-SA.
 - **Door positions, items, prices and icons:** [tarkov.dev](https://tarkov.dev).
 
