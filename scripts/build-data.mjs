@@ -144,6 +144,9 @@ for (const it of Object.values(items)) {
     const m = MAPS.find(m => m.name === w.map);
     if (m) maps = [m.id];
   }
+  // Wiki pages saved before fetch-wiki dropped category tags and other-language
+  // links still contain lines like "Category:Keys" or "fr:Clé ...": drop them here too.
+  const tidy = t => (t || '').split('\n').filter(l => !/^(Category|[a-z]{2,3}(-[a-z]+)?):\S/.test(l.trim())).join('\n').trim();
   keys.push({
     id: it.id,
     name: w?.title || titleCase(it.normalizedName),
@@ -152,11 +155,11 @@ for (const it of Object.values(items)) {
     price: it.avg24hPrice || it.lastLowPrice || 0,
     trader: Math.max(0, ...(it.sellFor || []).map(s => s.price || 0)),
     maps,
-    usage: w?.usage || '',
-    keyLocation: w?.keyLocation || '',
-    lockLocation: w?.lockLocation || '',
-    behindLock: w?.behindLock || '',
-    quests: w?.quests || '',
+    usage: tidy(w?.usage),
+    keyLocation: tidy(w?.keyLocation),
+    lockLocation: tidy(w?.lockLocation),
+    behindLock: tidy(w?.behindLock),
+    quests: tidy(w?.quests),
   });
 }
 keys.sort((a, b) => a.name.localeCompare(b.name));

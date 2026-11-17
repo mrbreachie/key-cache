@@ -39,6 +39,7 @@ function clean(s) {
     .replace(/<br\s*\/?>/gi, ' ')
     .replace(/<[^>]+>/g, '')
     .replace(/\[\[(?:File|Image):[^\]]*\]\]/gi, '')
+    .replace(/\[\[(?:Category|[a-z]{2,3}(?:-[a-z]+)?):[^\]]*\]\]/g, '') // category tags and other-language links
     .replace(/\[\[[^\]|]*\|([^\]]*)\]\]/g, '$1')
     .replace(/\[\[([^\]]*)\]\]/g, '$1')
     .replace(/\[https?:\/\/\S+ ([^\]]*)\]/g, '$1')

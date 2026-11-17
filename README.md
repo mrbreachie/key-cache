@@ -1,15 +1,19 @@
-# Tarkov Key Ring
+<img src="media/key-cache-logo-light.svg" alt="Key Cache" width="320">
+
+# Key Cache
 
 A free fan tool for Escape from Tarkov. Tick the keys you own, and the map shows every locked door you can open, what loot is behind it and where to find each key.
 
 **Open it:** https://mrbreachie.github.io/key-cache/
 
-![Demo: searching for dorm keys, ticking them, opening the Dorm room 314 key and switching to Reserve's bunkers](media/key-ring-demo.gif)
+![Demo: ticking keys on the map, switching maps from the dropdown, opening a key's details and browsing the key inventory](media/key-ring-demo.gif)
 
 ## What it does
 
 - **259 keys and keycards, 241 doors pinned** across 11 maps: Customs, Factory, Interchange, The Lab, Lighthouse, Reserve, Shoreline, Streets of Tarkov, Woods, Ground Zero and Terminal.
+- **Key inventory:** a page with every key as a card: what's behind the door, which maps, flea price and how many doors it opens. Filter by map, owned or missing, and sort by name, price or doors.
 - **Your keys, your doors:** each map lists how many of its doors you can open. Doors you have a key for show as solid white pins; the rest are hollow rings.
+- **Simple navigation:** a map dropdown at the top left, a menu for the pages, your totals and backups, and a key list that slides out over the map.
 - **Floors:** maps with several levels have a floor picker. Pins on other floors are drawn small and faded.
 - **Grid references:** rulers around the map give every door a reference such as `F6`, which also shows in the key list.
 - **Key details:** what's behind the door, where the door is, where to find the key, quests that use it, and the average flea price.
