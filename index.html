@@ -146,6 +146,8 @@ body[data-view="inv"] .mappick, body[data-view="inv"] .keysbtn { display: none; 
 .floors, .zoom, .legend { background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line-2); border-radius: 12px; box-shadow: var(--shadow); }
 .floors { position: absolute; left: 38px; top: 38px; z-index: 4; display: flex; flex-direction: column-reverse; gap: 2px; padding: 5px; }
 .floors .cap { order: 99; padding: 6px 8px 5px; }
+.mapwrap .dimmed { opacity: .5; }
+.floornote { position: absolute; left: 50%; top: 38px; transform: translateX(-50%); z-index: 4; max-width: min(440px, calc(100% - 420px)); padding: 9px 14px; border-radius: 12px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line-2); box-shadow: var(--shadow); color: var(--fg); font-size: 13.5px; line-height: 1.45; text-align: center; }
 .floors button {
   display: flex; justify-content: space-between; align-items: baseline; gap: 16px; min-width: 160px;
   border: 0; border-radius: 8px; background: transparent; color: var(--muted); text-align: left;
@@ -331,6 +333,7 @@ select.sort { margin-left: auto; }
   .panel { inset: 0; width: auto; border-radius: 0; border: 0; }
   .floors { flex-direction: row-reverse; flex-wrap: wrap-reverse; max-width: calc(100% - 96px); left: 32px; top: 32px; }
   .floors .cap { display: none; }
+  .floornote { top: auto; bottom: 150px; max-width: calc(100% - 48px); font-size: 12.5px; }
   .floors button { min-width: 0; font-size: 13px; padding: 8px 9px; gap: 8px; }
   .zoom { top: 32px; right: 8px; }
   .legend { left: 32px; right: 8px; bottom: 74px; gap: 6px 12px; font-size: 12.5px; padding: 8px 10px; }
@@ -390,6 +393,7 @@ select.sort { margin-left: auto; }
     <div class="ruler ry" id="ry" aria-hidden="true"></div>
     <div class="ruler-corner" aria-hidden="true"></div>
     <nav class="floors" id="floors" aria-label="Floors"></nav>
+    <div class="floornote" id="floorNote" role="status" hidden></div>
     <div class="zoom">
       <button id="zIn" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button>
       <button id="zOut" aria-label="Zoom out" title="Zoom out"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 8h10"/></svg></button>
@@ -868,9 +872,14 @@ select.sort { margin-left: auto; }
     st.floor = name; applyFloor(); renderFloors(); drawPins();
   }
   function applyFloor() {
-    const svg = img.querySelector('svg'); if (!svg) return;
     const sel = cur.floors.find(f => f.name === st.floor) || baseFloor();
     const base = baseFloor();
+    // Some floors (e.g. Reserve's 2nd to 5th) have doors but no drawing of their own.
+    const undrawn = sel !== base && !sel.svg;
+    const note = $('floorNote');
+    note.hidden = !undrawn;
+    if (undrawn) note.textContent = `This map has no drawing of the ${sel.name.toLowerCase()}. Its doors are shown on the ground plan.`;
+    const svg = img.querySelector('svg'); if (!svg) return;
     for (const f of cur.floors) {
       if (!f.svg || f.base) continue;
       const g = svg.querySelector('#' + f.svg);
@@ -881,6 +890,7 @@ select.sort { margin-left: auto; }
       const other = sel !== base;
       bg.classList.toggle('gone', other && cur.exclusive);
       bg.classList.toggle('faded', other && !cur.exclusive && !!sel.svg);
+      bg.classList.toggle('dimmed', undrawn);
     }
   }
   let sr = stage.getBoundingClientRect();
