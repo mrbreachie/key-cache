@@ -68,31 +68,29 @@ footer a { color: var(--muted); }
 </header>
 <main>
   <h1>Key ledger</h1>
-  <p class="lede">Every key and keycard Key Cache knows, with its icon, the short name the game prints on it in your stash, and its id. Use it to turn a screenshot of your keys into an import code, by hand or by giving this page (or <a href="ledger.md">ledger.md</a> / <a href="assets/keys.json">keys.json</a>) to an AI along with the screenshot.</p>
+  <p class="lede">Every key and keycard Key Cache knows, with its icon, the short name the game prints on it in your stash, and its number. Use it to turn a screenshot of your keys into an import code, by hand or by giving this page (or <a href="ledger.md">ledger.md</a> / <a href="assets/keys.json">keys.json</a>) to an AI along with the screenshot.</p>
 
   <div class="how">
     <div class="box">
       <h2>Make an import code</h2>
       <ol>
         <li>Match each key in the screenshot to a card below by its <b>short name</b> (top-right of the icon, as in the stash) and its <b>icon</b>.</li>
-        <li>Put the matching <b>ids</b> in a JSON array: <code id="exArr"></code></li>
-        <li>Encode it as base64. JavaScript: <code>btoa(JSON.stringify(ids))</code>. Python: <code>base64.b64encode(json.dumps(ids).encode()).decode()</code></li>
+        <li>Write <code>KC:</code> and then the <b>numbers</b> of the matching keys, separated by commas: <code id="exCode"></code>. That's the whole code, no encoding needed.</li>
         <li>On the site open <b>Menu › Back up or move your keys</b>, paste it and press <b>Add to my keys</b>, or <b>Restore</b> to replace your current keys.</li>
       </ol>
     </div>
     <div class="box">
       <h2>Good to know</h2>
       <ul>
-        <li>The import box also takes a plain list of ids, full key names or short names, one per line or separated by commas.</li>
-        <li>Ids are the safest. Cards marked <b>Shared name</b> share a short name (or full name) with another key, so check the icon and use the id.</li>
-        <li>Click an id to copy it.</li>
-        <li>Example code for the first two keys: <code id="exCode"></code></li>
+        <li>The import box also takes a plain list of numbers, ids, full key names or short names, one per line or separated by commas. Old base64 codes still work.</li>
+        <li>Numbers are the safest. Cards marked <b>Shared name</b> share a short name (or full name) with another key, so check the icon and use the number.</li>
+        <li>Click a number to copy it. For an AI, <a href="keys.txt">keys.txt</a> is the smallest list to paste in.</li>
       </ul>
     </div>
   </div>
 
   <div class="toolbar">
-    <input class="search" id="q" type="search" placeholder="Search by name, short name or id" aria-label="Search keys" autocomplete="off">
+    <input class="search" id="q" type="search" placeholder="Search by name, short name or number" aria-label="Search keys" autocomplete="off">
     <span class="count" id="count"></span>
   </div>
   <div class="grid" id="grid"></div>
@@ -108,26 +106,24 @@ footer a { color: var(--muted); }
   const count = (f) => { const c = {}; D.keys.forEach(k => { const v = f(k).toLowerCase(); c[v] = (c[v] || 0) + 1; }); return c; };
   const sc = count(k => k.short), nc = count(k => k.name);
   const shared = k => sc[k.short.toLowerCase()] > 1 || nc[k.name.toLowerCase()] > 1;
-  const ex = D.keys.slice(0, 2).map(k => k.id);
-  $('exArr').textContent = JSON.stringify(ex);
-  $('exCode').textContent = btoa(JSON.stringify(ex));
+  $('exCode').textContent = 'KC: ' + D.keys.slice(0, 3).map(k => k.n).join(', ');
   $('built').textContent = D.built;
   function render() {
     const q = $('q').value.trim().toLowerCase();
-    const ks = D.keys.filter(k => !q || (k.name + ' ' + k.short + ' ' + k.id).toLowerCase().includes(q));
+    const ks = D.keys.filter(k => !q || (k.name + ' ' + k.short + ' ' + k.id + ' #' + k.n).toLowerCase().includes(q));
     $('count').textContent = `${ks.length} of ${D.keys.length} keys`;
     $('grid').innerHTML = ks.length ? ks.map(k => `<article class="k${shared(k) ? ' shared' : ''}">
       <div class="cell">${k.icon ? `<img src="assets/icons/${k.id}.webp" alt="" loading="lazy">` : ''}<span class="sn">${esc(k.short)}</span></div>
       <div class="nm">${esc(k.name)}</div>
       <div class="mp">${esc(k.maps.map(mapName).join(', ') || 'No map listed')}</div>
       ${shared(k) ? '<span class="tag">Shared name</span>' : ''}
-      <button class="id" data-id="${k.id}" title="Copy id">${k.id}</button>
+      <button class="id" data-id="${k.n}" title="Copy number">No. ${k.n}</button>
     </article>`).join('') : '<div class="empty">No keys match.</div>';
   }
   $('q').addEventListener('input', render);
   $('grid').addEventListener('click', e => {
     const b = e.target.closest('.id'); if (!b) return;
-    const done = () => { b.classList.add('copied'); b.textContent = 'Copied'; setTimeout(() => { b.classList.remove('copied'); b.textContent = b.dataset.id; }, 900); };
+    const done = () => { b.classList.add('copied'); b.textContent = 'Copied'; setTimeout(() => { b.classList.remove('copied'); b.textContent = 'No. ' + b.dataset.id; }, 900); };
     if (navigator.clipboard?.writeText) navigator.clipboard.writeText(b.dataset.id).then(done, () => {}); else done();
   });
   render();

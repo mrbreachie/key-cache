@@ -336,6 +336,8 @@ select.sort { margin-left: auto; }
 .mlink { border: 1px solid var(--line-2); background: var(--panel-2); color: var(--fg); border-radius: 99px; padding: 3px 10px; font-size: 13px; transition: background .12s, border-color .12s; }
 .mlink:hover { background: var(--panel-3); border-color: rgba(255,255,255,.35); }
 .mlink::after { content: " →"; color: var(--muted); }
+.mlink.nopin { border-style: dashed; }
+.nopin-note { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
 .lhunt { display: flex; justify-content: center; }
 .kc:hover .kc-foot .more { color: var(--fg); }
 
@@ -564,7 +566,7 @@ select.sort { margin-left: auto; }
     <span class="lab">Back up or move your keys</span>
     <p>Your ticks are saved in this browser only. Copy the code to keep it safe or to move your keys to another browser or device.</p>
     <p>Importing from a screenshot? The <a href="ledger.html">key ledger</a> lists every key's icon, stash name and id, and explains the code.</p>
-    <textarea id="backup" aria-label="Backup code or list of keys" placeholder="Paste a backup code, or key ids or names (one per line)"></textarea>
+    <textarea id="backup" aria-label="Backup code or list of keys" placeholder="Paste a code like KC: 4, 17, 203, or key numbers or names (one per line)"></textarea>
     <div class="btns">
       <button class="btn" id="copyB">Copy backup code</button>
       <button class="btn" id="addB">Add to my keys</button>
@@ -897,7 +899,7 @@ select.sort { margin-left: auto; }
     const lockCell = k => {
       const withDoor = [...new Set((doorsByKey[k.id] || []).map(d => d.map))];
       const rest = k.maps.filter(m => !withDoor.includes(m));
-      const parts = [...withDoor.map(m => `<button class="mlink" data-door-map="${m}" title="Show the lock on the map">${esc(mapName(m))}</button>`), ...rest.map(m => `<span>${esc(mapName(m))}</span>`)];
+      const parts = [...withDoor.map(m => `<button class="mlink" data-door-map="${m}" title="Show the lock on the map">${esc(mapName(m))}</button>`), ...rest.map(m => mapById[m] ? `<button class="mlink nopin" data-open-map="${m}" title="Lock not pinned: opens the map with the key's details">${esc(mapName(m))}</button>` : `<span>${esc(mapName(m))}</span>`)];
       return parts.length ? parts.join('') : `<span class="none">${opensNothing(k) ? 'Opens no lock' : 'No map listed'}</span>`;
     };
     // Column sorting: click a header to sort by it, click again to reverse.
@@ -951,7 +953,8 @@ select.sort { margin-left: auto; }
     const id = r.dataset.id, t = e.target;
     if (t.matches('[data-hunt]')) return toggleHunt(id, t.checked);
     if (t.matches('input.tick')) return toggleOwned(id, t.checked);
-    const dm = t.closest('[data-door-map]'), sm = t.closest('[data-spawn-map]');
+    const dm = t.closest('[data-door-map]'), sm = t.closest('[data-spawn-map]'), om = t.closest('[data-open-map]');
+    if (om) return openMapFor(id, om.dataset.openMap);
     if (dm) return showOnMap(id, doorsByKey[id].filter(d => d.map === dm.dataset.doorMap));
     if (sm) return showOnMap(id, spawnsByKey[id].filter(s => s.map === sm.dataset.spawnMap));
     if (t.closest('input, label')) return;
@@ -1410,6 +1413,11 @@ select.sort { margin-left: auto; }
     const spawnBtns = sps.map((s, i) => `<button data-spawn="${i}"><span class="ref">${gridRef(s)}</span><span>${esc(mapName(s.map))}${floorLabel(s) ? ' · ' + esc(floorLabel(s)) : ''}${s.n > 1 ? ` · shared spot (1 of ${s.n} items)` : ''}</span><span class="go">Show on map</span></button>`).join('');
     const findSec = k.keyLocation || sps.length ? `<div class="sec"><h3 class="lab">Where to find the key</h3>${sps.length ? `<label class="huntsw"><input class="sw" type="checkbox" id="cardHunt" ${hunt.has(k.id) ? 'checked' : ''}><span><b>Looking for this key</b><small>Highlights its ${plural(sps.length, 'fixed spawn')} on the map</small></span></label><div class="doors">${spawnBtns}</div>${k.keyLocation ? '<h4>From the wiki</h4>' : ''}` : ''}${rich(k.keyLocation)}</div>` : '';
     const doorBtns = ds.map((d, i) => `<button data-door="${i}"><span class="ref">${gridRef(d)}</span><span>${esc(mapName(d.map))}${floorLabel(d) ? ' · ' + esc(floorLabel(d)) : ''}${d.power ? ' · needs power' : ''}</span><span class="go">Show on map</span></button>`).join('');
+    // Maps the key is used on but where no lock is pinned (tarkov.dev doesn't mark
+    // it, e.g. Health Resort rooms and safes): still offer a way to open that map.
+    const unpinned = k.maps.filter(m => mapById[m] && !ds.some(d => d.map === m));
+    const openBtns = unpinned.map(m => `<button class="mlink nopin" data-open-map="${m}">Open ${esc(mapName(m))}</button>`).join(' ');
+    const openSec = unpinned.length ? `<div class="maplinks">${openBtns}<p class="nopin-note">${ds.length ? 'Not every lock for this key is pinned' : 'This lock isn\'t pinned on the map'}: tarkov.dev doesn't mark it. Use the description above to find it.</p></div>` : '';
     const has = owned.has(k.id);
     const inInv = st.view === 'inv';
     card.innerHTML = `
@@ -1419,7 +1427,7 @@ select.sort { margin-left: auto; }
       </div>
       <label class="own${has ? ' on' : ''}"><input class="tick" type="checkbox" id="cardOwn" ${has ? 'checked' : ''}> I have this key<span class="st">${has ? 'In your cache' : 'Not in your cache'}</span></label>
       <div class="sec loot"><h3 class="lab">Behind the door</h3>${rich(k.behindLock) || '<p class="none">The wiki has no loot listed for this key yet.</p>'}</div>
-      ${k.lockLocation || k.usage || ds.length ? `<div class="sec"><h3 class="lab">Where the door is</h3>${rich(k.lockLocation) || (k.usage ? '<p>' + esc(k.usage) + '</p>' : '')}${ds.length ? `<div class="doors">${doorBtns}</div>` : ''}</div>` : ''}
+      ${k.lockLocation || k.usage || ds.length || unpinned.length ? `<div class="sec"><h3 class="lab">Where the door is</h3>${rich(k.lockLocation) || (k.usage ? '<p>' + esc(k.usage) + '</p>' : '')}${ds.length ? `<div class="doors">${doorBtns}</div>` : ''}${openSec}</div>` : ''}
       ${findSec}
       ${k.quests ? `<div class="sec"><h3 class="lab">Quests</h3>${rich(k.quests)}</div>` : ''}
       <div class="sec links">
@@ -1433,6 +1441,7 @@ select.sort { margin-left: auto; }
     $('cardOwn').onchange = e => toggleOwned(k.id, e.target.checked);
     card.querySelectorAll('[data-door]').forEach(b => b.onclick = () => showOnMap(k.id, [ds[+b.dataset.door]]));
     card.querySelectorAll('[data-spawn]').forEach(b => b.onclick = () => showOnMap(k.id, [sps[+b.dataset.spawn]]));
+    card.querySelectorAll('[data-open-map]').forEach(b => b.onclick = () => openMapFor(k.id, b.dataset.openMap));
     const ch = $('cardHunt'); if (ch) ch.onchange = e => toggleHunt(k.id, e.target.checked);
   }
   // Open the map at some doors or spawns of one key (all on one map), from anywhere.
@@ -1446,6 +1455,14 @@ select.sort { margin-left: auto; }
     renderCard(); renderList(); drawPins();
     setPanel(!narrow());
     centerOn(here);
+  }
+  // Open a map with a key selected when its lock there has no pin.
+  function openMapFor(id, m) {
+    if (st.view !== 'map') { history.pushState(null, '', '#' + m); route(); }
+    if (m !== st.map) setMap(m, true);
+    st.sel = id;
+    renderCard(); renderList(); drawPins();
+    setPanel(!narrow());
   }
   function toggleHunt(id, on) {
     on ? hunt.add(id) : hunt.delete(id);
@@ -1463,28 +1480,37 @@ select.sort { margin-left: auto; }
 
   // ---- backup and import
   $('copyB').onclick = () => {
-    const code = btoa(JSON.stringify([...owned]));
+    const code = 'KC: ' + [...owned].map(id => keyById[id]?.n).filter(Boolean).sort((a, b) => a - b).join(', ');
     $('backup').value = code;
     const fallback = () => { $('backup').select(); $('bMsg').textContent = 'Select and copy the code above'; };
     if (navigator.clipboard?.writeText) navigator.clipboard.writeText(code).then(() => ($('bMsg').textContent = 'Copied'), fallback);
     else fallback();
   };
-  // The box accepts a backup code (base64 of a JSON array of key ids, as made by
-  // "Copy backup code" or from the key ledger), a JSON array, or key ids, key names
-  // or stash short names separated by new lines, commas or semicolons.
+  // The box accepts a backup code ("KC: 4, 17, 203" = key numbers, see keys.txt),
+  // an old base64 code (JSON array of key ids), a JSON array, or key numbers, ids,
+  // names or stash short names separated by new lines, commas or semicolons.
+  // AI replies are often wrapped in quotes, code fences, bullets or "n | name"
+  // rows, so those are stripped.
+  const byNum = {};
+  D.keys.forEach(k => { if (k.n) byNum[k.n] = k.id; });
   const byName = {};
   D.keys.forEach(k => { for (const n of new Set([k.name, k.short])) if (n) (byName[n.toLowerCase()] ||= new Set()).add(k.id); });
   function parseImport(text) {
-    text = text.trim();
+    text = text.replace(/```\w*/g, '').trim();
     let list = null;
-    try { const j = JSON.parse(atob(text)); if (Array.isArray(j)) list = j; } catch {}
+    const kc = text.match(/\bKC\s*[:=-]?\s*([\d\s,;#.]+)/i);
+    if (kc) list = kc[1].match(/\d+/g) || [];
+    if (!list) try { const j = JSON.parse(atob(text)); if (Array.isArray(j)) list = j; } catch {}
     if (!list) try { const j = JSON.parse(text); if (Array.isArray(j)) list = j; } catch {}
     if (!list) list = text.split(/[\n,;]+/);
     const ids = new Set(), bad = [], unsure = [];
     for (const raw of list) {
-      const s = String(raw).trim().replace(/^["'`]+|["'`]+$/g, '').trim();
+      let s = String(raw).trim().replace(/^[-*•]\s+/, '').replace(/^["'`]+|["'`]+$/g, '').trim();
+      if (s.includes('|')) s = s.split('|')[0].trim();
+      s = s.replace(/^#/, '');
       if (!s) continue;
       if (keyById[s]) { ids.add(s); continue; }
+      if (/^\d+$/.test(s)) { if (byNum[+s]) ids.add(byNum[+s]); else bad.push(s); continue; }
       const m = byName[s.toLowerCase()];
       if (m && m.size === 1) ids.add([...m][0]);
       else (m ? unsure : bad).push(s);
@@ -1494,7 +1520,7 @@ select.sort { margin-left: auto; }
   function importKeys(replace) {
     const { ids, bad, unsure } = parseImport($('backup').value);
     if (!ids.length && !bad.length && !unsure.length) { $('bMsg').textContent = 'Paste a backup code or a list of keys first.'; return; }
-    if (!ids.length) { $('bMsg').textContent = 'No keys recognised. Check the code, or use key ids from the key ledger.'; return; }
+    if (!ids.length) { $('bMsg').textContent = 'No keys recognised. Check the code, or use key numbers from keys.txt.'; return; }
     const before = owned.size;
     owned = replace ? new Set(ids) : new Set([...owned, ...ids]);
     save();

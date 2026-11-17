@@ -258,6 +258,15 @@ for (const it of Object.values(items)) {
 }
 keys.sort((a, b) => a.name.localeCompare(b.name));
 
+// Key numbers: a short, permanent number for each key (`key.n`), so an import
+// code can be "KC: 4, 17, 203" instead of 24-character ids in base64, which AIs
+// often get wrong. Numbers never change or get reused: new keys go at the end.
+const NUM_FILE = p('data/key-numbers.json');
+const keyNum = await readFile(NUM_FILE, 'utf8').then(JSON.parse, () => ({}));
+let nextNum = Math.max(0, ...Object.values(keyNum)) + 1;
+for (const k of keys) k.n = keyNum[k.id] ||= nextNum++;
+await writeFile(NUM_FILE, JSON.stringify(keyNum, null, 1) + '\n');
+
 // Fixed key spawns: tarkov.dev's loose-loot spots that can hold a key. Big
 // random-loot pools (65-90 possible items) aren't a key's spawn, so a spot
 // counts when it lists at most SPAWN_MAX items and at least one is a key.
@@ -399,7 +408,8 @@ for (const k of keys) k.icon = await validWebp(p(`data/icons/${k.id}.webp`));
 // (machine-readable) and ledger.md (readable, with icon links). ledger.html shows
 // the same list on the site.
 const SITE = 'https://mrbreachie.github.io/key-cache/';
-const EX = keys.slice(0, 2).map(k => k.id); // real ids for the examples
+const EX = keys.slice(0, 3).map(k => k.n); // real numbers for the examples
+const EXCODE = 'KC: ' + EX.join(', ');
 await mkdir(p('assets/icons/'), { recursive: true });
 for (const k of keys) if (k.icon) await writeFile(p(`assets/icons/${k.id}.webp`), await readFile(p(`data/icons/${k.id}.webp`)));
 const mapLabel = id => MAPS.find(m => m.id === id)?.name || NO_SVG[id] || id;
@@ -408,14 +418,14 @@ keys.forEach(k => { const s = k.short.toLowerCase(); shortCount[s] = (shortCount
 const nameCount = {};
 keys.forEach(k => { const s = k.name.toLowerCase(); nameCount[s] = (nameCount[s] || 0) + 1; });
 const ledger = keys.map(k => ({
-  id: k.id, name: k.name, short: k.short,
+  n: k.n, id: k.id, name: k.name, short: k.short,
   maps: k.maps.map(mapLabel),
   icon: k.icon ? `${SITE}assets/icons/${k.id}.webp` : '',
   ...(shortCount[k.short.toLowerCase()] > 1 || nameCount[k.name.toLowerCase()] > 1 ? { sharedName: true } : {}),
 }));
 await writeFile(p('assets/keys.json'), JSON.stringify({
   built: new Date().toISOString().slice(0, 10),
-  importCode: `base64 of a JSON array of key ids, e.g. btoa(JSON.stringify(["${EX[0]}"])). Paste it under Menu > Back up or move your keys, then press Add to my keys (or Restore to replace).`,
+  importCode: `"KC:" followed by the key numbers (field n), separated by commas, e.g. "${EXCODE}". Paste it under Menu > Back up or move your keys, then press Add to my keys (or Restore to replace).`,
   keys: ledger,
 }, null, 1) + '\n');
 const md = [
@@ -426,29 +436,35 @@ const md = [
   '## How to make an import code',
   '',
   '1. Match each key in the screenshot to a row below. In the stash, the game prints the **short name** on the item; compare the **icon** too, especially for rows marked *shared name*.',
-  '2. Collect the matching **ids** into a JSON array, for example `' + JSON.stringify(EX) + '`.',
-  '3. Encode the array as base64. JavaScript: `btoa(JSON.stringify(ids))`. Python: `base64.b64encode(json.dumps(ids).encode()).decode()`.',
-  '4. On the site open **Menu > Back up or move your keys**, paste the code and press **Add to my keys** (keeps keys already ticked) or **Restore** (replaces them).',
+  '2. Write `KC:` followed by the **numbers** (first column) of the matching keys, separated by commas, for example `' + EXCODE + '`. That is the whole code: no encoding needed.',
+  '3. On the site open **Menu > Back up or move your keys**, paste the code and press **Add to my keys** (keeps keys already ticked) or **Restore** (replaces them).',
   '',
-  'The import box also accepts a plain list of ids, or of exact key names or short names, one per line or separated by commas. Ids are the safest: some short names are shared.',
+  'The import box also accepts a plain list of numbers, ids, exact key names or short names, one per line or separated by commas. Numbers are the safest: some short names are shared. Older base64 codes still work.',
   '',
   'Machine-readable version: [assets/keys.json](assets/keys.json). Page version with icons: ' + SITE + 'ledger.html',
   '',
-  '| Icon | Short name (in stash) | Key | Maps | Id |',
-  '|---|---|---|---|---|',
-  ...ledger.map(k => `| ${k.icon ? `<img src="assets/icons/${k.id}.webp" width="48" height="48" alt="">` : ''} | ${k.short.replace(/\|/g, '\\|')}${k.sharedName ? ' *(shared name)*' : ''} | ${k.name.replace(/\|/g, '\\|')} | ${k.maps.join(', ') || '–'} | \`${k.id}\` |`),
+  '| No. | Icon | Short name (in stash) | Key | Maps | Id |',
+  '|---|---|---|---|---|---|',
+  ...ledger.map(k => `| ${k.n} | ${k.icon ? `<img src="assets/icons/${k.id}.webp" width="48" height="48" alt="">` : ''} | ${k.short.replace(/\|/g, '\\|')}${k.sharedName ? ' *(shared name)*' : ''} | ${k.name.replace(/\|/g, '\\|')} | ${k.maps.join(', ') || '–'} | \`${k.id}\` |`),
   '',
 ].join('\n');
 await writeFile(p('ledger.md'), md);
 // keys.txt: the small plain-text version to paste into any AI along with a screenshot.
 await writeFile(p('keys.txt'), [
-  `Key Cache key list (${keys.length} keys, ${new Date().toISOString().slice(0, 10)}). One key per line: id | full name | short name shown on the item in the stash.`,
-  'To import: match the keys in a screenshot to these lines, put their ids in a JSON array and base64-encode it, e.g. btoa(JSON.stringify(["' + EX[0] + '"])).',
-  `Paste the result (or just the ids, one per line) under Menu > Back up or move your keys on ${SITE} and press "Add to my keys".`,
-  'Short names marked * are used by more than one key: tell those apart by the full name or icon.',
+  `Key Cache key list (${keys.length} keys, ${new Date().toISOString().slice(0, 10)}). Site: ${SITE}`,
   '',
-  ...keys.map(k => `${k.id} | ${k.name} | ${k.short}${shortCount[k.short.toLowerCase()] > 1 || nameCount[k.name.toLowerCase()] > 1 ? ' *' : ''}`),
+  'HOW TO MAKE AN IMPORT CODE',
+  '1. Look at the screenshot of keys. The small text on each key is its short name (last column below).',
+  '2. Find each key in the list below and note its number (first column).',
+  `3. Reply with one line: KC: then the numbers, separated by commas. Example: ${EXCODE}`,
+  '   Do not encode it (no base64, no JSON). Each number once. Skip keys you cannot identify and say which.',
+  '4. The user pastes that line under Menu > Back up or move your keys and presses "Add to my keys".',
+  'A * means another key has the same short name: pick by the full name or icon, or ask the user.',
   '',
+  'number | full name | short name',
+  ...keys.map(k => `${k.n} | ${k.name} | ${k.short}${shortCount[k.short.toLowerCase()] > 1 || nameCount[k.name.toLowerCase()] > 1 ? ' *' : ''}`),
+  '',
+
 ].join('\n'));
 console.log(`ledger: ${ledger.length} keys, ${ledger.filter(k => k.sharedName).length} with a shared name`);
 
